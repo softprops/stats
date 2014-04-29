@@ -10,6 +10,7 @@ import scala.concurrent.duration.FiniteDuration
 abstract class Sampled[T:Serialize] {
   def sample(rate: Double): Sampled[T]
   def add(value: T)(implicit ec: ExecutionContext): Future[Unit]
+  def stat(value: T): Stat[T]
 }
 
 abstract class Counter[T:Numeric] {
@@ -20,6 +21,7 @@ abstract class Counter[T:Numeric] {
   def incr(value: T)(implicit ec: ExecutionContext): Future[Unit]
   def decr(implicit ec: ExecutionContext): Future[Unit] =
     incr(num.negate(num.default))(ec)
+  def stat(value: T): Stat[T]
 }
 
 /**
@@ -60,7 +62,9 @@ case class Stats(
       def sample(rate: Double): Counter[T] =
         newCounter[T](keys, rate)
       def incr(value: T)(implicit ec: ExecutionContext): Future[Unit] =
-        send(Stat("c", keys, value, rate))
+        send(stat(value))
+      def stat(value: T): Stat[T] =
+        Stat("c", keys, value, rate)
     }
   
   private[this] def newSampled[T:Serialize]
@@ -68,7 +72,9 @@ case class Stats(
       def sample(rate: Double): Sampled[T] =
         newSampled[T](unit, keys, rate)
       def add(value: T)(implicit ec: ExecutionContext) =
-        send(Stat(unit, keys, value, rate))
+        send(stat(value))
+      def stat(value: T): Stat[T] =
+        Stat(unit, keys, value, rate)
     }
 
   def counter[T:Numeric](key: String, tailKeys: String*): Counter[T] =
