@@ -53,9 +53,6 @@ case class Stats(
 
     lazy val line: String =
       keys.map(key => s"$key:${ser(value)}|$unit${if (sampleRate < 1) "|@"+sampleRate else ""}").mkString("\n")
-
-    def apply(implicit ev: ExecutionContext): Future[Unit] =
-      send(this)
   }
 
   private[this] def newCounter[T:Numeric]
@@ -63,7 +60,7 @@ case class Stats(
       def sample(rate: Double): Counter[T] =
         newCounter[T](keys, rate)
       def incr(value: T)(implicit ec: ExecutionContext): Future[Unit] =
-        Stat("c", keys, value, rate).apply(ec)
+        send(Stat("c", keys, value, rate))
     }
   
   private[this] def newSampled[T:Serialize]
@@ -71,7 +68,7 @@ case class Stats(
       def sample(rate: Double): Sampled[T] =
         newSampled[T](unit, keys, rate)
       def add(value: T)(implicit ec: ExecutionContext) =
-        Stat(unit, keys, value, rate).apply(ec)
+        send(Stat(unit, keys, value, rate))
     }
 
   def counter[T:Numeric](key: String, tailKeys: String*): Counter[T] =
