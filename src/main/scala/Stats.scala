@@ -64,15 +64,21 @@ case class Stats(
       send(this)
   }
 
-  private[this] def newCounter[T:Numeric](keys: List[String], rate: Double = 1D): Counter[T] = new Counter[T] {
-    def sample(rate: Double): Counter[T] = newCounter[T](keys, rate)
-    def incr(by: T)(implicit ec: ExecutionContext): Future[Unit] = Stat("c", keys, rate, by).apply(ec)
-  }
+  private[this] def newCounter[T:Numeric]
+    (keys: List[String], rate: Double = 1D): Counter[T] =new Counter[T] {
+      def sample(rate: Double): Counter[T] =
+        newCounter[T](keys, rate)
+      def incr(by: T)(implicit ec: ExecutionContext): Future[Unit] =
+        Stat("c", keys, rate, by).apply(ec)
+    }
   
-  private[this] def newSampled[T:Serialize](unit: String, keys: List[String], rate: Double = 1D): Sampled[T] = new Sampled[T] {
-    def sample(rate: Double): Sampled[T] = newSampled[T](unit, keys, rate)
-    def add(value: T)(implicit ec: ExecutionContext) = Stat(unit, keys, rate, value).apply(ec)
-  }
+  private[this] def newSampled[T:Serialize]
+    (unit: String, keys: List[String], rate: Double = 1D): Sampled[T] = new Sampled[T] {
+      def sample(rate: Double): Sampled[T] =
+        newSampled[T](unit, keys, rate)
+      def add(value: T)(implicit ec: ExecutionContext) =
+        Stat(unit, keys, rate, value).apply(ec)
+    }
 
   def counter[T:Numeric](key: String, tailKeys: String*) =
     newCounter[T](key :: tailKeys.toList)
