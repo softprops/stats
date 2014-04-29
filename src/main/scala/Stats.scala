@@ -3,8 +3,7 @@ package stats
 import java.net._
 import java.nio.ByteBuffer
 import java.nio.channels.DatagramChannel
-import java.util.Random
-//import java.util.concurrent.ThreadLocalRandom ( added in java 7 )
+import java.util.Random //import java.util.concurrent.ThreadLocalRandom ( added in java 7 )
 import scala.concurrent.{ ExecutionContext, Future }
 import scala.concurrent.duration.FiniteDuration
 
@@ -45,10 +44,7 @@ case class Stats(
 
   /** A stat captures a metric unit, value, sampleRate and one or more keys to associate with it */
   case class Stat[T: Serialize](
-    unit: String,
-    keys: List[String],
-    sampleRate: Double = 1D,
-    value: T)  {
+    unit: String, keys: List[String], value: T, sampleRate: Double) {
     private[this] val ser = implicitly[Serialize[T]]
 
     lazy val sampled =
@@ -58,18 +54,16 @@ case class Stats(
     lazy val line: String =
       keys.map(key => s"$key:${ser(value)}|$unit${if (sampleRate < 1) "|@"+sampleRate else ""}").mkString("\n")
 
-    def sample(rate: Double) = copy(sampleRate = rate)
-
     def apply(implicit ev: ExecutionContext): Future[Unit] =
       send(this)
   }
 
   private[this] def newCounter[T:Numeric]
-    (keys: List[String], rate: Double = 1D): Counter[T] =new Counter[T] {
+    (keys: List[String], rate: Double = 1D): Counter[T] = new Counter[T] {
       def sample(rate: Double): Counter[T] =
         newCounter[T](keys, rate)
-      def incr(by: T)(implicit ec: ExecutionContext): Future[Unit] =
-        Stat("c", keys, rate, by).apply(ec)
+      def incr(value: T)(implicit ec: ExecutionContext): Future[Unit] =
+        Stat("c", keys, value, rate).apply(ec)
     }
   
   private[this] def newSampled[T:Serialize]
@@ -77,17 +71,20 @@ case class Stats(
       def sample(rate: Double): Sampled[T] =
         newSampled[T](unit, keys, rate)
       def add(value: T)(implicit ec: ExecutionContext) =
-        Stat(unit, keys, rate, value).apply(ec)
+        Stat(unit, keys, value, rate).apply(ec)
     }
 
-  def counter[T:Numeric](key: String, tailKeys: String*) =
+  def counter[T:Numeric](key: String, tailKeys: String*): Counter[T] =
     newCounter[T](key :: tailKeys.toList)
 
-  def set[T:Numeric](key: String, tailKeys: String*)  = newSampled[T]("s", key :: tailKeys.toList)
+  def set[T:Numeric](key: String, tailKeys: String*): Sampled[T] =
+    newSampled[T]("s", key :: tailKeys.toList)
 
-  def gauge[T:Numeric](key: String, tailKeys: String*)  = newSampled[T]("g", key :: tailKeys.toList)
+  def gauge[T:Numeric](key: String, tailKeys: String*): Sampled[T] =
+    newSampled[T]("g", key :: tailKeys.toList)
 
-  def time(key: String, tailKeys: String*) = newSampled[FiniteDuration]("ms", key :: tailKeys.toList)
+  def time(key: String, tailKeys: String*): Sampled[FiniteDuration] =
+    newSampled[FiniteDuration]("ms", key :: tailKeys.toList)
 
   def multi(head: Stat[_], tail: Stat[_]*)(implicit ec: ExecutionContext) =
     send((head :: tail.toList):_*)
