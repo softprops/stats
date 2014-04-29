@@ -8,6 +8,11 @@ import java.util.Random
 import scala.concurrent.{ ExecutionContext, Future }
 import scala.concurrent.duration.FiniteDuration
 
+abstract class Sampled[T:Serialize] {
+  def sample(rate: Double): Sampled[T]
+  def add(value: T)(implicit ec: ExecutionContext): Future[Unit]
+}
+
 abstract class Counter[T:Numeric] {
   val num = implicitly[Numeric[T]]
   def sample(rate: Double): Counter[T]
@@ -43,41 +48,46 @@ case class Stats(
     unit: String,
     keys: List[String],
     sampleRate: Double = 1D,
-    value: Option[T] = None)  {
+    value: T)  {
     private[this] val ser = implicitly[Serialize[T]]
 
     lazy val sampled =
       (sampleRate >= 1
        || nextDouble <= sampleRate)
 
-    lazy val line: Option[String] =
-      value.map { value => keys.map(key => s"$key:${ser(value)}|$unit${if (sampleRate < 1) "|@"+sampleRate else ""}").mkString("\n") }
+    lazy val line: String =
+      keys.map(key => s"$key:${ser(value)}|$unit${if (sampleRate < 1) "|@"+sampleRate else ""}").mkString("\n")
 
     def sample(rate: Double) = copy(sampleRate = rate)
 
-    def add(value: T)(implicit ev: ExecutionContext): Future[Unit] =
-      send(this.copy(value = Some(value)))
+    def apply(implicit ev: ExecutionContext): Future[Unit] =
+      send(this)
   }
 
-  private[this] def newCounter[T:Numeric](stat: Stat[T]): Counter[T] = new Counter[T] {
-    def sample(rate: Double) = newCounter(stat.copy(sampleRate = rate))
-    def incr(by: T)(implicit ec: ExecutionContext): Future[Unit] = stat.add(by)
+  private[this] def newCounter[T:Numeric](keys: List[String], rate: Double = 1D): Counter[T] = new Counter[T] {
+    def sample(rate: Double): Counter[T] = newCounter[T](keys, rate)
+    def incr(by: T)(implicit ec: ExecutionContext): Future[Unit] = Stat("c", keys, rate, by).apply(ec)
+  }
+  
+  private[this] def newSampled[T:Serialize](unit: String, keys: List[String], rate: Double = 1D): Sampled[T] = new Sampled[T] {
+    def sample(rate: Double): Sampled[T] = newSampled[T](unit, keys, rate)
+    def add(value: T)(implicit ec: ExecutionContext) = Stat(unit, keys, rate, value).apply(ec)
   }
 
   def counter[T:Numeric](key: String, tailKeys: String*) =
-    newCounter(Stat[T]("c", key :: tailKeys.toList))
+    newCounter[T](key :: tailKeys.toList)
 
-  def set[T:Numeric](key: String, tailKeys: String*)  = Stat[T]("s", key :: tailKeys.toList)
+  def set[T:Numeric](key: String, tailKeys: String*)  = newSampled[T]("s", key :: tailKeys.toList)
 
-  def gauge[T:Numeric](key: String, tailKeys: String*)  = Stat[T]("g", key :: tailKeys.toList)
+  def gauge[T:Numeric](key: String, tailKeys: String*)  = newSampled[T]("g", key :: tailKeys.toList)
 
-  def time(key: String, tailKeys: String*) = Stat[FiniteDuration]("ms", key :: tailKeys.toList)
+  def time(key: String, tailKeys: String*) = newSampled[FiniteDuration]("ms", key :: tailKeys.toList)
 
   def multi(head: Stat[_], tail: Stat[_]*)(implicit ec: ExecutionContext) =
     send((head :: tail.toList):_*)
     
   private[this] def send(stats: Stat[_]*)(implicit ec: ExecutionContext): Future[Unit] =
-    stats.filter(s => s.sampled && s.value.isDefined) match {
+    stats.filter(_.sampled) match {
       case Nil => Future.successful(())
       case xs  => Future {
         def flush() = {
