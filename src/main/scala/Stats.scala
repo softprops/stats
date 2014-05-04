@@ -105,21 +105,23 @@ case class Stats(
     stats.filter(_.sampled) match {
       case Nil => Stats.Success
       case xs  => Future {
-        def flush() = {
-          val size = buffer.position()
-          if (size > 0) {
-            buffer.flip()
-            val sent = channel.send(buffer, address)
-            buffer.limit(buffer.capacity())
-            buffer.rewind()
-            if (size != sent) { /*failed*/ }
+        buffer.synchronized {
+          def flush() = {
+            val size = buffer.position()
+            if (size > 0) {
+              buffer.flip()
+              val sent = channel.send(buffer, address)
+              buffer.limit(buffer.capacity())
+              buffer.rewind()
+              if (size != sent) { /*failed*/ }
+            }
           }
+          val bytes = xs.map(_.lines.mkString("\n")).mkString("\n").getBytes("utf-8")
+          // capacity check
+          if (buffer.remaining() < bytes.size) flush()
+          buffer.put(bytes)
+          flush()
         }
-        val bytes = xs.map(_.lines.mkString("\n")).mkString("\n").getBytes("utf-8")
-        // capacity check
-        if (buffer.remaining() < bytes.size) flush()
-        buffer.put(bytes)
-        flush()
       }
     }
 }
