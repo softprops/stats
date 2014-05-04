@@ -10,7 +10,7 @@ import scala.concurrent.duration.FiniteDuration
 abstract class Sampled[T:Serialize] {
   def sample(rate: Double): Sampled[T]
   def add(value: T)(implicit ec: ExecutionContext): Future[Unit]
-  def stat(value: T): Stat[T]
+  def apply(value: T): Stat
 }
 
 abstract class Counter[T:Numeric] {
@@ -21,7 +21,12 @@ abstract class Counter[T:Numeric] {
   def incr(value: T)(implicit ec: ExecutionContext): Future[Unit]
   def decr(implicit ec: ExecutionContext): Future[Unit] =
     incr(num.negate(num.default))(ec)
-  def stat(value: T): Stat[T]
+  def apply(value: T): Stat
+}
+
+trait Stat {
+  def lines: Iterable[String]
+  def sampled: Boolean
 }
 
 /**
@@ -45,16 +50,16 @@ case class Stats(
   def nextDouble = rand.nextDouble // ThreadLocalRandom.current().nextDouble ( java 7 )
 
   /** A stat captures a metric unit, value, sampleRate and one or more keys to associate with it */
-  case class Stat[T: Serialize](
-    unit: String, keys: List[String], value: T, sampleRate: Double) {
+  case class Lines[T: Serialize](
+    unit: String, keys: List[String], value: T, sampleRate: Double) extends Stat {
     private[this] val ser = implicitly[Serialize[T]]
 
-    lazy val sampled =
+    def sampled =
       (sampleRate >= 1
        || nextDouble <= sampleRate)
 
-    lazy val line: String =
-      keys.map(key => s"$key:${ser(value)}|$unit${if (sampleRate < 1) "|@"+sampleRate else ""}").mkString("\n")
+    lazy val lines =
+      keys.map(key => s"$key:${ser(value)}|$unit${if (sampleRate < 1) "|@"+sampleRate else ""}")
   }
 
   private[this] def newCounter[T:Numeric]
@@ -62,9 +67,9 @@ case class Stats(
       def sample(rate: Double): Counter[T] =
         newCounter[T](keys, rate)
       def incr(value: T)(implicit ec: ExecutionContext): Future[Unit] =
-        send(stat(value))
-      def stat(value: T): Stat[T] =
-        Stat("c", keys, value, rate)
+        send(apply(value))
+      def apply(value: T): Stat =
+        Lines("c", keys, value, rate)
     }
   
   private[this] def newSampled[T:Serialize]
@@ -72,27 +77,27 @@ case class Stats(
       def sample(rate: Double): Sampled[T] =
         newSampled[T](unit, keys, rate)
       def add(value: T)(implicit ec: ExecutionContext) =
-        send(stat(value))
-      def stat(value: T): Stat[T] =
-        Stat(unit, keys, value, rate)
+        send(apply(value))
+      def apply(value: T): Stat =
+        Lines(unit, keys, value, rate)
     }
 
-  def counter[T:Numeric](key: String, tailKeys: String*): Counter[T] =
-    newCounter[T](key :: tailKeys.toList)
+  def counter(keys: String*): Counter[Int] =
+    newCounter[Int](keys.toList)
 
-  def set[T:Numeric](key: String, tailKeys: String*): Sampled[T] =
-    newSampled[T]("s", key :: tailKeys.toList)
+  def set[T:Numeric](keys: String*): Sampled[T] =
+    newSampled[T]("s", keys.toList)
 
-  def gauge[T:Numeric](key: String, tailKeys: String*): Sampled[T] =
-    newSampled[T]("g", key :: tailKeys.toList)
+  def gauge[T:Numeric](keys: String*): Sampled[T] =
+    newSampled[T]("g", keys.toList)
 
   def time(key: String, tailKeys: String*): Sampled[FiniteDuration] =
     newSampled[FiniteDuration]("ms", key :: tailKeys.toList)
 
-  def multi(head: Stat[_], tail: Stat[_]*)(implicit ec: ExecutionContext) =
-    send((head :: tail.toList):_*)
+  def multi(stats: Stat*)(implicit ec: ExecutionContext) =
+    send(stats:_*)
     
-  private[this] def send(stats: Stat[_]*)(implicit ec: ExecutionContext): Future[Unit] =
+  private[this] def send(stats: Stat*)(implicit ec: ExecutionContext): Future[Unit] =
     stats.filter(_.sampled) match {
       case Nil => Future.successful(())
       case xs  => Future {
@@ -106,7 +111,7 @@ case class Stats(
             if (size != sent) { /*failed*/ }
           }
         }
-        val bytes = xs.map(_.line).mkString("\n").getBytes("utf-8")
+        val bytes = xs.map(_.lines.mkString("\n")).mkString("\n").getBytes("utf-8")
         // capacity check
         if (buffer.remaining() < bytes.size) flush()
         buffer.put(bytes)
