@@ -29,6 +29,10 @@ trait Stat {
   def sampled: Boolean
 }
 
+object Stats {
+  val Success = Future.successful(())
+}
+
 /**
  * An statsd client that supports asyncronous sending of singular and multi stats.
  * Connections to remote host is lazily evaluated until an actual request to send.
@@ -99,7 +103,7 @@ case class Stats(
     
   private[this] def send(stats: Stat*)(implicit ec: ExecutionContext): Future[Unit] =
     stats.filter(_.sampled) match {
-      case Nil => Future.successful(())
+      case Nil => Stats.Success
       case xs  => Future {
         def flush() = {
           val size = buffer.position()
