@@ -91,8 +91,8 @@ case class Stats(
   def gauge[T:Numeric](keys: String*): Sampled[T] =
     newSampled[T]("g", keys.toList)
 
-  def time(key: String, tailKeys: String*): Sampled[FiniteDuration] =
-    newSampled[FiniteDuration]("ms", key :: tailKeys.toList)
+  def time(keys: String*): Sampled[FiniteDuration] =
+    newSampled[FiniteDuration]("ms", keys.toList)
 
   def multi(stats: Stat*)(implicit ec: ExecutionContext) =
     send(stats:_*)
