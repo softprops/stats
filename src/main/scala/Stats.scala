@@ -7,7 +7,7 @@ import java.util.Random //import java.util.concurrent.ThreadLocalRandom ( added 
 import scala.concurrent.{ ExecutionContext, Future }
 import scala.concurrent.duration.FiniteDuration
 
-abstract class Sampled[T:Serialize] {
+abstract class Sampled[T:Countable] {
   def sample(rate: Double): Sampled[T]
   def add(value: T): Future[Boolean]
   def apply(value: T): Stat
@@ -38,14 +38,14 @@ object Stats {
  * Connections to remote host is lazily evaluated until an actual request to send.
  * Supports numeric counters, finite duration guages, and arbitraryily valued guages and sets.
  * All metric values should be serializable as formated strings. This is enforced via
- * implicit instances of Serialize for a given type T in scope.
+ * implicit instances of Countable for a given type T in scope.
  */
 case class Stats(
   host: String = "0.0.0.0",
   port: Int = 8125,
-  packetSize: Int = 1024)
+  packetSize: Short = 1024)
   (implicit ec: ExecutionContext) {
-  import stats.Serialize._
+  import stats.Countable._
 
   private[this] lazy val rand    = new Random()
   private[this] lazy val buffer  = ByteBuffer.allocate(packetSize)
@@ -55,37 +55,39 @@ case class Stats(
   def nextDouble = rand.nextDouble // ThreadLocalRandom.current().nextDouble ( java 7 )
 
   /** A stat captures a metric unit, value, sampleRate and one or more keys to associate with it */
-  case class Lines[T: Serialize](
+  case class Lines[@specialized(Int, Double, Float) T: Countable](
     unit: String, keys: List[String], value: T, sampleRate: Double) extends Stat {
-    private[this] val ser = implicitly[Serialize[T]]
+    private[this] val count = implicitly[Countable[T]]
 
     def sampled =
       (sampleRate >= 1
        || nextDouble <= sampleRate)
 
     lazy val lines =
-      keys.map(key => s"$key:${ser(value)}|$unit${if (sampleRate < 1) "|@"+sampleRate else ""}")
+      keys.map(key => s"$key:${count(value)}|$unit${if (sampleRate < 1) "|@"+sampleRate else ""}")
   }
 
   private[this] def newCounter[T:Numeric]
-    (keys: List[String], rate: Double = 1D): Counter[T] = new Counter[T] {
-      def sample(rate: Double): Counter[T] =
-        newCounter[T](keys, rate)
-      def incr(value: T): Future[Boolean] =
-        send(apply(value))
-      def apply(value: T): Stat =
-        Lines("c", keys, value, rate)
-    }
+    (keys: List[String], rate: Double = 1D): Counter[T] =
+      new Counter[T] {
+        def sample(rate: Double): Counter[T] =
+          newCounter[T](keys, rate)
+        def incr(value: T): Future[Boolean] =
+          send(apply(value))
+        def apply(value: T): Stat =
+          Lines("c", keys, value, rate)
+      }
   
-  private[this] def newSampled[T:Serialize]
-    (unit: String, keys: List[String], rate: Double = 1D): Sampled[T] = new Sampled[T] {
-      def sample(rate: Double): Sampled[T] =
-        newSampled[T](unit, keys, rate)
-      def add(value: T) =
-        send(apply(value))
-      def apply(value: T): Stat =
-        Lines(unit, keys, value, rate)
-    }
+  private[this] def newSampled[T:Countable]
+    (unit: String, keys: List[String], rate: Double = 1D): Sampled[T] =
+      new Sampled[T] {
+        def sample(rate: Double): Sampled[T] =
+          newSampled[T](unit, keys, rate)
+        def add(value: T) =
+          send(apply(value))
+        def apply(value: T): Stat =
+          Lines(unit, keys, value, rate)
+      }
 
   def counter(keys: String*): Counter[Int] =
     newCounter[Int](keys.toList)
