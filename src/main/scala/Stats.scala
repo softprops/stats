@@ -1,6 +1,6 @@
 package stats
 
-import java.net._
+import java.net.{ InetAddress, InetSocketAddress }
 import java.nio.ByteBuffer
 import java.nio.channels.DatagramChannel
 import java.util.Random //import java.util.concurrent.ThreadLocalRandom ( added in java 7 )
@@ -9,18 +9,18 @@ import scala.concurrent.duration.FiniteDuration
 
 abstract class Sampled[T:Serialize] {
   def sample(rate: Double): Sampled[T]
-  def add(value: T)(implicit ec: ExecutionContext): Future[Unit]
+  def add(value: T): Future[Boolean]
   def apply(value: T): Stat
 }
 
 abstract class Counter[T:Numeric] {
   val num = implicitly[Numeric[T]]
   def sample(rate: Double): Counter[T]
-  def incr(implicit ec: ExecutionContext): Future[Unit] =
-    incr(num.default)(ec)
-  def incr(value: T)(implicit ec: ExecutionContext): Future[Unit]
-  def decr(implicit ec: ExecutionContext): Future[Unit] =
-    incr(num.negate(num.default))(ec)
+  def incr: Future[Boolean] =
+    incr(num.default)
+  def incr(value: T): Future[Boolean]
+  def decr: Future[Boolean] =
+    incr(num.negate(num.default))
   def apply(value: T): Stat
 }
 
@@ -30,7 +30,7 @@ trait Stat {
 }
 
 object Stats {
-  val Success = Future.successful(())
+  val Success = Future.successful(true)
 }
 
 /**
@@ -43,7 +43,8 @@ object Stats {
 case class Stats(
   host: String = "0.0.0.0",
   port: Int = 8125,
-  packetSize: Int = 1024) {
+  packetSize: Int = 1024)
+  (implicit ec: ExecutionContext) {
   import stats.Serialize._
 
   private[this] lazy val rand    = new Random()
@@ -70,7 +71,7 @@ case class Stats(
     (keys: List[String], rate: Double = 1D): Counter[T] = new Counter[T] {
       def sample(rate: Double): Counter[T] =
         newCounter[T](keys, rate)
-      def incr(value: T)(implicit ec: ExecutionContext): Future[Unit] =
+      def incr(value: T): Future[Boolean] =
         send(apply(value))
       def apply(value: T): Stat =
         Lines("c", keys, value, rate)
@@ -80,7 +81,7 @@ case class Stats(
     (unit: String, keys: List[String], rate: Double = 1D): Sampled[T] = new Sampled[T] {
       def sample(rate: Double): Sampled[T] =
         newSampled[T](unit, keys, rate)
-      def add(value: T)(implicit ec: ExecutionContext) =
+      def add(value: T) =
         send(apply(value))
       def apply(value: T): Stat =
         Lines(unit, keys, value, rate)
@@ -98,10 +99,10 @@ case class Stats(
   def time(keys: String*): Sampled[FiniteDuration] =
     newSampled[FiniteDuration]("ms", keys.toList)
 
-  def multi(stats: Stat*)(implicit ec: ExecutionContext) =
+  def multi(stats: Stat*) =
     send(stats:_*)
     
-  private[this] def send(stats: Stat*)(implicit ec: ExecutionContext): Future[Unit] =
+  private[this] def send(stats: Stat*): Future[Boolean] =
     stats.filter(_.sampled) match {
       case Nil => Stats.Success
       case xs  => Future {
@@ -113,8 +114,8 @@ case class Stats(
               val sent = channel.send(buffer, address)
               buffer.limit(buffer.capacity())
               buffer.rewind()
-              if (size != sent) { /*failed*/ }
-            }
+              size != sent
+            } else true
           }
           val bytes = xs.map(_.lines.mkString("\n")).mkString("\n").getBytes("utf-8")
           // capacity check
