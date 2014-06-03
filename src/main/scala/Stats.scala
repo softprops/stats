@@ -7,12 +7,14 @@ import java.util.Random //import java.util.concurrent.ThreadLocalRandom ( added 
 import scala.concurrent.{ ExecutionContext, Future }
 import scala.concurrent.duration.FiniteDuration
 
+/** Sampled instances may have values added at sampled rates */
 abstract class Sampled[T:Countable] {
   def sample(rate: Double): Sampled[T]
   def add(value: T): Future[Boolean]
   def apply(value: T): Stat
 }
 
+/** A counter is also sampled, but supports incr/decr operations */
 abstract class Counter[T:Numeric] {
   val num = implicitly[Numeric[T]]
   def sample(rate: Double): Counter[T]
@@ -20,7 +22,9 @@ abstract class Counter[T:Numeric] {
     incr(num.default)
   def incr(value: T): Future[Boolean]
   def decr: Future[Boolean] =
-    incr(num.negate(num.default))
+    decr(num.default)
+  def decr(value: T): Future[Boolean] =
+    incr(num.negate(value))
   def apply(value: T): Stat
 }
 
@@ -64,7 +68,7 @@ case class Stats(
        || nextDouble <= sampleRate)
 
     lazy val lines =
-      keys.map(key => s"$key:${count(value)}|$unit${if (sampleRate < 1) "|@"+sampleRate else ""}")
+      keys.map(key => s"$key:${count(value)}|$unit${if (sampleRate < 1) "@"+sampleRate else ""}")
   }
 
   private[this] def newCounter[T:Numeric]
