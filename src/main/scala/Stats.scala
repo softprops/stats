@@ -18,6 +18,7 @@ abstract class Sampled[T:Countable] {
 abstract class Counter[T:Numeric] {
   val num = implicitly[Numeric[T]]
   def sample(rate: Double): Counter[T]
+  def apply(value: T): Stat
   def incr: Future[Boolean] =
     incr(num.default)
   def incr(value: T): Future[Boolean]
@@ -25,7 +26,6 @@ abstract class Counter[T:Numeric] {
     decr(num.default)
   def decr(value: T): Future[Boolean] =
     incr(num.negate(value))
-  def apply(value: T): Stat
 }
 
 trait Stat {
@@ -60,7 +60,7 @@ case class Stats(
 
   /** A stat captures a metric unit, value, sampleRate and one or more keys to associate with it */
   case class Lines[@specialized(Int, Double, Float) T: Countable](
-    unit: String, keys: List[String], value: T, sampleRate: Double) extends Stat {
+    unit: String, keys: Iterable[String], value: T, sampleRate: Double) extends Stat {
     private[this] val count = implicitly[Countable[T]]
 
     def sampled =
@@ -72,7 +72,7 @@ case class Stats(
   }
 
   private[this] def newCounter[T:Numeric]
-    (keys: List[String], rate: Double = 1D): Counter[T] =
+    (keys: Iterable[String], rate: Double = 1D): Counter[T] =
       new Counter[T] {
         def sample(rate: Double): Counter[T] =
           newCounter[T](keys, rate)
@@ -83,7 +83,7 @@ case class Stats(
       }
   
   private[this] def newSampled[T:Countable]
-    (unit: String, keys: List[String], rate: Double = 1D): Sampled[T] =
+    (unit: String, keys: Iterable[String], rate: Double = 1D): Sampled[T] =
       new Sampled[T] {
         def sample(rate: Double): Sampled[T] =
           newSampled[T](unit, keys, rate)
@@ -94,16 +94,16 @@ case class Stats(
       }
 
   def counter(keys: String*): Counter[Int] =
-    newCounter[Int](keys.toList)
+    newCounter[Int](keys)
 
   def set[T:Numeric](keys: String*): Sampled[T] =
-    newSampled[T]("s", keys.toList)
+    newSampled[T]("s", keys)
 
   def gauge[T:Numeric](keys: String*): Sampled[T] =
-    newSampled[T]("g", keys.toList)
+    newSampled[T]("g", keys)
 
   def time(keys: String*): Sampled[FiniteDuration] =
-    newSampled[FiniteDuration]("ms", keys.toList)
+    newSampled[FiniteDuration]("ms", keys)
 
   def multi(stats: Stat*) =
     send(stats:_*)
