@@ -16,7 +16,7 @@ abstract class Sampled[T:Countable] {
 
 /** A counter is also sampled, but supports incr/decr operations */
 abstract class Counter[T:Numeric] {
-  val num = implicitly[Numeric[T]]
+  private[this] val num = implicitly[Numeric[T]]
   def sample(rate: Double): Counter[T]
   def apply(value: T): Stat
   def incr: Future[Boolean] =
@@ -38,23 +38,23 @@ object Stats {
 }
 
 /**
- * An statsd client that supports asyncronous sending of singular and multi stats.
+ * An statsd client that supports asynchronous sending of singular and multi stats.
  * Connections to remote host is lazily evaluated until an actual request to send.
- * Supports numeric counters, finite duration guages, and arbitraryily valued guages and sets.
- * All metric values should be serializable as formated strings. This is enforced via
+ * Supports numeric counters, finite duration gauges, and arbitrarily valued gauges and sets.
+ * All metric values should be serializable as formatted strings. This is enforced via
  * implicit instances of Countable for a given type T in scope.
  */
 case class Stats(
-  host: String = "0.0.0.0",
-  port: Int = 8125,
-  packetSize: Short = 1024)
-  (implicit ec: ExecutionContext) {
+  address: InetSocketAddress = new InetSocketAddress(InetAddress.getByName("localhost"), 8125))
+ (implicit ec: ExecutionContext) {
   import stats.Countable._
 
   private[this] lazy val rand    = new Random()
-  private[this] lazy val buffer  = ByteBuffer.allocate(packetSize)
-  private[this] lazy val address = new InetSocketAddress(InetAddress.getByName(host), port)
   private[this] lazy val channel = DatagramChannel.open()
+
+  def close() = channel.close()
+
+  def addr(host: String, port: Int = 8125) = copy(address = new InetSocketAddress(InetAddress.getByName(host), address.getPort))
 
   def nextDouble = rand.nextDouble // ThreadLocalRandom.current().nextDouble ( java 7 )
 
@@ -110,25 +110,13 @@ case class Stats(
     
   private[this] def send(stats: Stat*): Future[Boolean] =
     stats.filter(_.sampled) match {
-      case Nil => Stats.Success
+      case Nil =>
+        Stats.Success
       case xs  => Future {
-        buffer.synchronized {
-          def flush() = {
-            val size = buffer.position()
-            if (size > 0) {
-              buffer.flip()
-              val sent = channel.send(buffer, address)
-              buffer.limit(buffer.capacity())
-              buffer.rewind()
-              size != sent
-            } else true
-          }
-          val bytes = xs.map(_.lines.mkString("\n")).mkString("\n").getBytes("utf-8")
-          // capacity check
-          if (buffer.remaining() < bytes.size) flush()
-          buffer.put(bytes)
-          flush()
-        }
+        val str = xs.map(_.lines.mkString("\n")).mkString("\n")
+        val bytes = str.getBytes()
+        val sent = channel.send(ByteBuffer.wrap(bytes), address)
+        bytes.size == sent
       }
     }
 }
