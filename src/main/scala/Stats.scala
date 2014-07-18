@@ -3,6 +3,8 @@ package stats
 import java.net.{ InetAddress, InetSocketAddress }
 import java.nio.ByteBuffer
 import java.nio.channels.DatagramChannel
+import java.nio.charset.Charset
+
 import java.util.Random //import java.util.concurrent.ThreadLocalRandom ( added in java 7 )
 import scala.concurrent.{ ExecutionContext, Future }
 import scala.concurrent.duration.FiniteDuration
@@ -29,12 +31,13 @@ abstract class Counter[T:Numeric] {
 }
 
 trait Stat {
-  def lines: Iterable[String]
+  def str: String
   def sampled: Boolean
 }
 
 object Stats {
   val Success = Future.successful(true)
+  val charset = Charset.forName("US-ASCII")
 }
 
 /**
@@ -45,7 +48,9 @@ object Stats {
  * implicit instances of Countable for a given type T in scope.
  */
 case class Stats(
-  address: InetSocketAddress = new InetSocketAddress(InetAddress.getByName("localhost"), 8125))
+  address: InetSocketAddress         = new InetSocketAddress(InetAddress.getByName("localhost"), 8125),
+  format: Iterable[String] => String = Keys.format,
+  prefix: Iterable[String]           = Nil)
  (implicit ec: ExecutionContext) {
   import stats.Countable._
 
@@ -56,19 +61,21 @@ case class Stats(
 
   def addr(host: String, port: Int = 8125) = copy(address = new InetSocketAddress(InetAddress.getByName(host), address.getPort))
 
+  def prefix(pre: Iterable[String]) = copy(prefix = pre)
+
   def nextDouble = rand.nextDouble // ThreadLocalRandom.current().nextDouble ( java 7 )
 
   /** A stat captures a metric unit, value, sampleRate and one or more keys to associate with it */
-  case class Lines[@specialized(Int, Double, Float) T: Countable](
-    unit: String, keys: Iterable[String], value: T, sampleRate: Double) extends Stat {
+  case class Line[@specialized(Int, Double, Float) T: Countable](
+    unit: String, name: Iterable[String], value: T, sampleRate: Double) extends Stat {
     private[this] val count = implicitly[Countable[T]]
 
     def sampled =
       (sampleRate >= 1
        || nextDouble <= sampleRate)
 
-    lazy val lines =
-      keys.map(key => s"$key:${count(value)}|$unit${if (sampleRate < 1) "@"+sampleRate else ""}")
+    lazy val str =
+      s"${format(name)}:${count(value)}|$unit${if (sampleRate < 1) "@"+sampleRate else ""}"
   }
 
   private[this] def newCounter[T:Numeric]
@@ -79,7 +86,7 @@ case class Stats(
         def incr(value: T): Future[Boolean] =
           send(apply(value))
         def apply(value: T): Stat =
-          Lines("c", keys, value, rate)
+          Line("c", keys, value, rate)
       }
   
   private[this] def newSampled[T:Countable]
@@ -90,20 +97,20 @@ case class Stats(
         def add(value: T) =
           send(apply(value))
         def apply(value: T): Stat =
-          Lines(unit, keys, value, rate)
+          Line(unit, keys, value, rate)
       }
 
-  def counter(keys: String*): Counter[Int] =
-    newCounter[Int](keys)
+  def counter(name: String*): Counter[Int] =
+    newCounter[Int](prefix ++ name)
 
-  def set[T:Numeric](keys: String*): Sampled[T] =
-    newSampled[T]("s", keys)
+  def set[T:Numeric](name: String*): Sampled[T] =
+    newSampled[T]("s", prefix ++ name)
 
-  def gauge[T:Numeric](keys: String*): Sampled[T] =
-    newSampled[T]("g", keys)
+  def gauge[T:Numeric](name: String*): Sampled[T] =
+    newSampled[T]("g", prefix ++ name)
 
-  def time(keys: String*): Sampled[FiniteDuration] =
-    newSampled[FiniteDuration]("ms", keys)
+  def time(name: String*): Sampled[FiniteDuration] =
+    newSampled[FiniteDuration]("ms", prefix ++ name)
 
   def multi(stats: Stat*) =
     send(stats:_*)
@@ -113,8 +120,8 @@ case class Stats(
       case Nil =>
         Stats.Success
       case xs  => Future {
-        val str = xs.map(_.lines.mkString("\n")).mkString("\n")
-        val bytes = str.getBytes()
+        val str = xs.map(_.str).mkString("\n")
+        val bytes = str.getBytes(Stats.charset)
         val sent = channel.send(ByteBuffer.wrap(bytes), address)
         bytes.size == sent
       }
