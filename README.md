@@ -3,9 +3,9 @@
 collected numbers
 
 ```scala
-val nums = stats.Stats()
-val requests = nums.counter("api.requests.foo", "api.requests.all").sample(0.8)
-val timings = nums.time("api.responses.foo")
+val nums = stats.Stats().prefix("api")
+val requests = nums.counter("requests", "foo").sample(0.8)
+val timings = nums.time("responses")
 requests.inrc()
 timings.add(3.millis)
 ```

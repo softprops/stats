@@ -61,7 +61,7 @@ case class Stats(
 
   def addr(host: String, port: Int = 8125) = copy(address = new InetSocketAddress(InetAddress.getByName(host), address.getPort))
 
-  def prefix(pre: Iterable[String]) = copy(prefix = pre)
+  def prefix(pre: String*) = copy(prefix = pre)
 
   def nextDouble = rand.nextDouble // ThreadLocalRandom.current().nextDouble ( java 7 )
 
