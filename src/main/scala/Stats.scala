@@ -5,7 +5,6 @@ import java.nio.ByteBuffer
 import java.nio.channels.DatagramChannel
 import java.nio.charset.Charset
 
-import java.util.Random //import java.util.concurrent.ThreadLocalRandom ( added in java 7 )
 import scala.concurrent.{ ExecutionContext, Future }
 import scala.concurrent.duration.FiniteDuration
 
@@ -54,7 +53,6 @@ case class Stats(
  (implicit ec: ExecutionContext) {
   import stats.Countable._
 
-  private[this] lazy val rand    = new Random()
   private[this] lazy val channel = DatagramChannel.open()
 
   def close() = channel.close()
@@ -63,8 +61,6 @@ case class Stats(
 
   def prefix(pre: String*) = copy(prefix = pre)
 
-  def nextDouble = rand.nextDouble // ThreadLocalRandom.current().nextDouble ( java 7 )
-
   /** A stat captures a metric unit, value, sampleRate and one or more keys to associate with it */
   case class Line[@specialized(Int, Double, Float) T: Countable](
     unit: String, name: Iterable[String], value: T, sampleRate: Double) extends Stat {
@@ -72,7 +68,7 @@ case class Stats(
 
     def sampled =
       (sampleRate >= 1
-       || nextDouble <= sampleRate)
+       || Random.nextDouble <= sampleRate)
 
     lazy val str =
       s"${format(name)}:${count(value)}|$unit${if (sampleRate < 1) "@"+sampleRate else ""}"
