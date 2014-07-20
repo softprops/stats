@@ -4,6 +4,8 @@ name := "stats"
 
 version := "0.1.0-SNAPSHOT"
 
+decription := "a nonblocking statsd client"
+
 libraryDependencies += "org.scalacheck" %% "scalacheck" % "1.11.4" % "test"
 
 crossScalaVersions := Seq("2.10.4", "2.11.1")
