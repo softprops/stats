@@ -17,7 +17,7 @@ private[stats] object Random {
       rand.getDeclaredMethod("current", null)
     private[this] val next =
       rand.getDeclaredMethod("nextDouble", null)
-    private[this] val instance =
+    private[this] def instance =
       current.invoke(null, null)
 
     def nextDouble = next.invoke(instance, null).asInstanceOf[Double]
