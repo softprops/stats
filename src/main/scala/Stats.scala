@@ -11,6 +11,7 @@ import scala.concurrent.duration.FiniteDuration
 /** Sampled instances may have values added at sampled rates */
 abstract class Sampled[T:Countable] {
   def sample(rate: Double): Sampled[T]
+  def scope(sx: String*): Sampled[T]
   def add(value: T): Future[Boolean]
   def apply(value: T): Stat
 }
@@ -19,6 +20,7 @@ abstract class Sampled[T:Countable] {
 abstract class Counter[T:Numeric] {
   private[this] val num = implicitly[Numeric[T]]
   def sample(rate: Double): Counter[T]
+  def scope(sx: String*): Counter[T]
   def apply(value: T): Stat
   def incr: Future[Boolean] =
     incr(num.default)
@@ -49,7 +51,7 @@ object Stats {
 case class Stats(
   address: InetSocketAddress         = new InetSocketAddress(InetAddress.getByName("localhost"), 8125),
   format: Iterable[String] => String = Keys.format,
-  prefix: Iterable[String]           = Nil)
+  scopes: Iterable[String]           = Nil)
  (implicit ec: ExecutionContext) {
   import stats.Countable._
 
@@ -59,7 +61,7 @@ case class Stats(
 
   def addr(host: String, port: Int = 8125) = copy(address = new InetSocketAddress(InetAddress.getByName(host), address.getPort))
 
-  def prefix(pre: String*) = copy(prefix = pre)
+  def scope(sx: String*) = copy(scopes = scopes ++ sx)
 
   /** A stat captures a metric unit, value, sampleRate and one or more keys to associate with it */
   case class Line[@specialized(Int, Double, Float) T: Countable](
@@ -75,38 +77,42 @@ case class Stats(
   }
 
   private[this] def newCounter[T:Numeric]
-    (keys: Iterable[String], rate: Double = 1D): Counter[T] =
+    (name: Iterable[String], rate: Double = 1D): Counter[T] =
       new Counter[T] {
         def sample(rate: Double): Counter[T] =
-          newCounter[T](keys, rate)
+          newCounter[T](name, rate)
+        def scope(sx: String*): Counter[T] =
+          newCounter[T](name ++ sx, rate)
         def incr(value: T): Future[Boolean] =
           send(apply(value))
         def apply(value: T): Stat =
-          Line("c", keys, value, rate)
+          Line("c", name, value, rate)
       }
   
   private[this] def newSampled[T:Countable]
-    (unit: String, keys: Iterable[String], rate: Double = 1D): Sampled[T] =
+    (unit: String, name: Iterable[String], rate: Double = 1D): Sampled[T] =
       new Sampled[T] {
         def sample(rate: Double): Sampled[T] =
-          newSampled[T](unit, keys, rate)
+          newSampled[T](unit, name, rate)
+        def scope(sx: String*): Sampled[T] =
+          newSampled[T](unit, name ++ sx, rate)
         def add(value: T) =
           send(apply(value))
         def apply(value: T): Stat =
-          Line(unit, keys, value, rate)
+          Line(unit, name, value, rate)
       }
 
   def counter(name: String*): Counter[Int] =
-    newCounter[Int](prefix ++ name)
+    newCounter[Int](scopes ++ name)
 
   def set[T:Numeric](name: String*): Sampled[T] =
-    newSampled[T]("s", prefix ++ name)
+    newSampled[T]("s", scopes ++ name)
 
   def gauge[T:Numeric](name: String*): Sampled[T] =
-    newSampled[T]("g", prefix ++ name)
+    newSampled[T]("g", scopes ++ name)
 
   def time(name: String*): Sampled[FiniteDuration] =
-    newSampled[FiniteDuration]("ms", prefix ++ name)
+    newSampled[FiniteDuration]("ms", scopes ++ name)
 
   def multi(stats: Stat*) =
     send(stats:_*)
