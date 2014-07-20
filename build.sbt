@@ -4,7 +4,7 @@ name := "stats"
 
 version := "0.1.0-SNAPSHOT"
 
-decription := "a nonblocking statsd client"
+description := "a nonblocking statsd client"
 
 libraryDependencies += "org.scalacheck" %% "scalacheck" % "1.11.4" % "test"
 
