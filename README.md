@@ -39,7 +39,7 @@ sampleRequests.decr
 
 // counters may also be incr & and decr with a specific value
 sampledRequests.incr(10)
-sampledRequests.descr(5)
+sampledRequests.decr(5)
 
 
 // timings record finite durations
