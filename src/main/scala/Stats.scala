@@ -1,3 +1,4 @@
+
 package stats
 
 import java.net.{ InetAddress, InetSocketAddress }
@@ -50,7 +51,7 @@ object Stats {
  */
 case class Stats(
   address: InetSocketAddress         = new InetSocketAddress(InetAddress.getByName("localhost"), 8125),
-  format: Iterable[String] => String = Keys.format,
+  format: Iterable[String] => String = Names.format,
   scopes: Iterable[String]           = Nil)
  (implicit ec: ExecutionContext) {
   import stats.Countable._
