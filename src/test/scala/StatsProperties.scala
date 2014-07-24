@@ -3,7 +3,7 @@ package stats
 import org.scalacheck.Gen
 import org.scalacheck.Properties
 import org.scalacheck.Prop.forAll
-import scala.concurrent.Await
+import scala.concurrent.{ Await, Future }
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
 
@@ -17,7 +17,7 @@ object StatsSpec extends Properties("Stats") with Cleanup {
     stats.close()
   }
 
-  def await(f: Future[True]) = Await.result(f, 1.second)
+  def await(f: Future[Boolean]) = Await.result(f, 1.second)
 
   property("counter#incrs") = forAll(Gen.posNum[Int]) { (i: Int) =>
     val key = "test"
