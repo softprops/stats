@@ -17,55 +17,57 @@ object StatsSpec extends Properties("Stats") with Cleanup {
     stats.close()
   }
 
+  def await(f: Future[True]) = Await.result(f, 1.second)
+
   property("counter#incrs") = forAll(Gen.posNum[Int]) { (i: Int) =>
     val key = "test"
-    Await.result(for {
+    await(for {
       sent <- stats.counter(key).incr(i)
       str  <- reciepts()
     } yield {
       sent && str == s"$key:$i|c"
-    }, 1.second)
+    })
   }
 
   property("counter#decrs") = forAll(Gen.posNum[Int]) { (i: Int) =>
     val key = "test"
-    Await.result(for {
+    await(for {
       sent <- stats.counter(key).decr(i)
       str  <- reciepts()
     } yield {
       sent && str == s"$key:-$i|c"
-    }, 1.second)
+    })
   }
 
   property("set#adds") = forAll(Gen.posNum[Int]) { (i: Int) =>
     val key = "test"
-    Await.result(for {
+    await(for {
       sent <- stats.set[Int](key).add(i)
       str  <- reciepts()
     } yield {
       sent && str == s"$key:$i|s"
-    }, 1.second)
+    })
   }
 
   property("gauge#adds") = forAll(Gen.posNum[Int]) { (i: Int) =>
     val key = "test"
-    Await.result(for {
+    await(for {
       sent <- stats.gauge[Int](key).add(i)
       str  <- reciepts()
     } yield {
       sent && str == s"$key:$i|g"
-    }, 1.second)
+    })
   }
 
 
   property("time#adds") = forAll(Gen.posNum[Int]) { (i: Int) =>
     val key = "test"
-    Await.result(for {
+    await(for {
       sent <- stats.time(key).add(i.milliseconds)
       str  <- reciepts()
     } yield {
       sent && str == s"$key:$i|ms"
-    }, 1.second)
+    })
   }
 
   property("multi#sends") = forAll(for {
@@ -75,7 +77,7 @@ object StatsSpec extends Properties("Stats") with Cleanup {
     d <- Gen.posNum[Int]
   } yield (a,b,c,d)) {
     case (a: Int, b: Int, c: Int, d: Int) =>
-      Await.result(for {
+      await(for {
         sent <- stats.multi(
           stats.counter("a")(a),
           stats.set[Int]("b").apply(b),
@@ -85,6 +87,6 @@ object StatsSpec extends Properties("Stats") with Cleanup {
         str  <- reciepts()
       } yield {
         sent && str == s"a:$a|c\nb:$b|s\nc:$c|g\nd:$d|ms"
-      }, 1.second)
+      })
   }
 }
