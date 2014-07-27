@@ -64,6 +64,8 @@ case class Stats(
 
   def scope(sx: String*) = copy(scopes = scopes ++ sx)
 
+  def formatNames(fmt: Iterable[String] => String) = copy(format = fmt)
+
   /** A stat captures a metric unit, value, sampleRate and one or more keys to associate with it */
   case class Line[@specialized(Int, Double, Float) T: Countable](
     unit: String, name: Iterable[String], value: T, sampleRate: Double) extends Stat {
