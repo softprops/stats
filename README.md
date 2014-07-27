@@ -43,12 +43,12 @@ val scoped = cli.scope(serviceName)
 
 The above will prepend `serviceName` to the name of all metrics
 
-### metric values
+### Metric values
 
 Statsd defines a set of [metric types](https://github.com/etsy/statsd/blob/master/docs/metric_types.md) which a statsd server is able to interpret.
 This client provides type-safe interfaces for each of those.
 
-#### counting
+#### Counting
 
 The simpliest type of metric is a counter
 
@@ -79,7 +79,7 @@ val sampledRequests = requests.sample(0.8)
 
 The above will only report metric data at a rate of 0.8. Sampling is sometimes helpful to reduce load under heavy periods of requests.
 
-#### timing
+#### Timing
 
 Timers are recorders of time based information in milliseconds. To remove ambiguity the interface for timers operate on [FiniteDurations](http://www.scala-lang.org/api/current/index.html#scala.concurrent.duration.FiniteDuration).
 
@@ -91,7 +91,7 @@ latency.add(200 millis)
 latency.add(2 seconds)
 ```
 
-#### gauges
+#### Gauges
 
 Gauges provide an interface for recording information about arbitrary countable values. Countable types are currently defined as Ints, Doubles, and Floats
 . Since a type bound is defined you are required to specify the type of value you wish to record.
@@ -131,5 +131,22 @@ cli.multi(
 ```
 
 Each individual stat instances sample rate will be honored in a multi metric send.
+
+### Inspecting
+
+You can inspect the value a given metric will report by calling the `str` member of a given stats instance. This can help you get to know what to
+expect with you look for your metric in a the graphite UI.
+
+```scala
+// foo.bar:1000|ms
+val timerStr = cli.time("foo", "bar")(1.second).str
+```
+
+Note that metric names are specified as a varargs list of path segments. You may be template to hard code a preencoded path ( one containing a separator). In these cases those periods will be escaped to remove abiguity.
+
+```scala
+// foo_bar.baz:1000|ms
+val timerStr = cli.time("foo.bar", "baz")(1.second).str
+```
 
 Doug Tangren (softprops) 2014
