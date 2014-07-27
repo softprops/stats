@@ -9,7 +9,7 @@ object NameProperties extends Properties("Names") {
   val Escapables = Names.Symbols.toArray
 
   def escaped(str: String) = Escapables.forall { char =>
-    if (str.contains(char)) str.contains(s"""\$char""") else true
+    !str.contains(char)
   }
 
   def nonEmptyStr: Gen[String] =
@@ -18,9 +18,7 @@ object NameProperties extends Properties("Names") {
   def asciiChar: Gen[Char] = Gen.choose(0.toChar, 127.toChar)
 
   property("formats") = forAll(nonEmptyStr) { (str: String) =>
-    //val formatted = Names.format(str :: Nil)
-    //println(s"$str  $formatted")
-    //formatted.matches(AsciiPrintables) && escaped(formatted)
-    str == str
+    val formatted = Names.format(str :: Nil)
+    formatted.matches(AsciiPrintables) && escaped(formatted)
   }
 }

@@ -11,6 +11,7 @@ object Names {
   /** strips out anything that's that's not in the ascii printable range
    *  escapes symbols */
   def format(name: Iterable[String]) =
-    name.map(_.replaceAll(NonPrintables, "")
-        .replaceAll(SymbolGroup, """\\$1""")).mkString(Separator)
+    name.map(_.replaceAll(NonPrintables, "_")
+              .replaceAll(SymbolGroup, "_"))
+        .mkString(Separator)
 }
