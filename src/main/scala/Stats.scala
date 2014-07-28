@@ -1,17 +1,17 @@
-
 package stats
 
 import java.net.{ InetAddress, InetSocketAddress }
 import java.nio.ByteBuffer
 import java.nio.channels.DatagramChannel
 import java.nio.charset.Charset
-
+import scala.annotation.varargs
 import scala.concurrent.{ ExecutionContext, Future }
 import scala.concurrent.duration.FiniteDuration
 
 /** Sampled instances may have values added at sampled rates */
 abstract class Sampled[T:Countable] {
   def sample(rate: Double): Sampled[T]
+  @varargs
   def scope(sx: String*): Sampled[T]
   def add(value: T): Future[Boolean]
   def apply(value: T): Stat
@@ -21,6 +21,7 @@ abstract class Sampled[T:Countable] {
 abstract class Counter[T:Numeric] {
   private[this] val num = implicitly[Numeric[T]]
   def sample(rate: Double): Counter[T]
+  @varargs
   def scope(sx: String*): Counter[T]
   def apply(value: T): Stat
   def incr: Future[Boolean] =
@@ -40,6 +41,10 @@ trait Stat {
 object Stats {
   val Success = Future.successful(true)
   val charset = Charset.forName("US-ASCII")
+  // convenience for java
+  def client = {
+    Stats()(ExecutionContext.global)
+  }
 }
 
 /**
@@ -62,6 +67,7 @@ case class Stats(
 
   def addr(host: String, port: Int = 8125) = copy(address = new InetSocketAddress(InetAddress.getByName(host), address.getPort))
 
+  @varargs
   def scope(sx: String*) = copy(scopes = scopes ++ sx)
 
   def formatNames(fmt: Iterable[String] => String) = copy(format = fmt)
@@ -105,6 +111,7 @@ case class Stats(
           Line(unit, name, value, rate)
       }
 
+  @varargs
   def counter(name: String*): Counter[Int] =
     newCounter[Int](scopes ++ name)
 
@@ -114,9 +121,11 @@ case class Stats(
   def gauge[T:Numeric](name: String*): Sampled[T] =
     newSampled[T]("g", scopes ++ name)
 
+  @varargs
   def time(name: String*): Sampled[FiniteDuration] =
     newSampled[FiniteDuration]("ms", scopes ++ name)
 
+  @varargs
   def multi(stats: Stat*) =
     send(stats:_*)
     
