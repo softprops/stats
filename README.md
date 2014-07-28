@@ -6,18 +6,18 @@ numbers, collected
 
 ## usage
 
-Stats is a non-blocking Scala front end for reported metrics to [statsd](https://github.com/etsy/statsd/) over [UPD](http://en.wikipedia.org/wiki/User_Datagram_Protocol).
+Stats is a non-blocking Scala front end for reporting application metrics to [statsd](https://github.com/etsy/statsd/) over [UPD](http://en.wikipedia.org/wiki/User_Datagram_Protocol).
 
 ### connecting
 
-Creating a client is simple. The default client is configured for testing with a statsd server locally on port `8125`.
+Creating a stats client is simple. The default client is configured for testing with a statsd server locally on port `8125`.
 
 ```scala
 import scala.concurrent.ExecutionContext.Implicits.global
 val cli = stats.Stats()
 ```
 
-You can specify a remote address as an InetSocketAddress as the first argument to stats or use the `addr` method to return a client pointing and an alternative host.
+You can specify a remote address as an InetSocketAddress as the first argument or use the `addr` method to return a client pointing to an alternative host address.
 
 ```scala
 val hosted = cli.addr(host, port)
@@ -25,7 +25,7 @@ val hosted = cli.addr(host, port)
 
 ### metric names
 
-Statd servers are largely considered with 2 things, metric names and metric values. Metric names are lists of period (`.`) separated path segments.
+Statd servers are largely concerned with 2 things, metric names and metric values. Metric names are lists of period (`.`) separated path segments.
 These names translate to file paths so most naming rules that apply to file names also apply to metric names. If your application has specific name
 formatting needs you can override the default escaping strategy pass setting the clients `format` member.
 
@@ -35,13 +35,13 @@ val formatted = cli.formatNames { segments: Iterable[String] =>
 }
 ```
 
-Names also often represent some hierarchy encoding a metric's context. For this reason may of the stats client support name scoping.
+Names often represent an encoding of a metric's hierarchy context. For this reason, many of the stats client support name scoping with the `scope` method.
 
 ```scala
 val scoped = cli.scope(serviceName)
 ```
 
-The above will prepend `serviceName` to the name of all metrics
+The above will prepend `serviceName` to the name of all reported metrics
 
 ### Metric values
 
@@ -50,25 +50,25 @@ This client provides type-safe interfaces for each of those.
 
 #### Counting
 
-The simpliest type of metric is a counter
+The simplest type of metric is a counter
 
 ```scala
 val counts = cli.counter("requests", endpointName)
 ```
 
-`counts` is a reference to a stat named "requests.endpointName" and defines a handleful of operations
+`counts` is a reference to a stat named "requests.endpointName" and defines a handful of operations
 
 ```scala
 // counters can incr & decr a metric name
-sampledRequests.incr
-sampleRequests.decr
+counts.incr
+counts.decr
 
 // counters may also be incr & and decr with a specific value
-sampledRequests.incr(10)
-sampledRequests.decr(5)
+counts.incr(10)
+counts.decr(5)
 ```
 
-Note each operation results of a [Future](http://www.scala-lang.org/api/current/index.html#scala.concurrent.Future) of type boolean where the boolean represents the packet data being sent fully.
+Note each operation results of a [Future](http://www.scala-lang.org/api/current/index.html#scala.concurrent.Future) of type boolean where the boolean value represents the packet data being sent fully.
 
 Counting, and other metric types, all support request sampling. By default any metric operation will be reported to a statsd server. You can override
 this behavior by setting a custom sample rate, a number between 0 and 1.
@@ -106,7 +106,7 @@ memory.add(80000000)
 
 #### Sets
 
-Sets are similar to guages except that what gets recorded is only unique occurances of events within an interval of time ( the flush period defined in your statsd server )
+Sets are similar to gauges except that what gets recorded is only unique occurrences of events within an interval of time ( the flush period defined in your statsd server )
 
 ```scala
 val visitors = cli.set[Int]("visitors")
@@ -142,7 +142,7 @@ expect with you look for your metric in a the graphite UI.
 val timerStr = cli.time("foo", "bar")(1.second).str
 ```
 
-Note that metric names are specified as a varargs list of path segments. You may be template to hard code a preencoded path ( one containing a separator). In these cases those periods will be escaped to remove abiguity.
+Note that metric names are specified as a varargs list of path segments. You may be template to hard code a preencoded path ( one containing a separator). In these cases those periods will be escaped to remove ambiguity.
 
 ```scala
 // foo_bar.baz:1000|ms
