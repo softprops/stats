@@ -12,20 +12,20 @@ trait Numeric[T] extends Countable[T] {
 }
 
 object Countable {
-  implicit object FiniteDurationCounts extends Countable[FiniteDuration] {
+  implicit val finiteDurations: Countable[FiniteDuration] = new Countable[FiniteDuration] {
     def apply(value: FiniteDuration) = value.toMillis.toString
   }
-  implicit object IntCounts extends Numeric[Int] {
+  implicit val ints: Numeric[Int] = new Numeric[Int] {
     def default = 1
     def negate(value: Int) = -value
     def apply(value: Int) = value.toString
   }
-  implicit object DoubleCounts extends Numeric[Double] {
+  implicit val doubles: Numeric[Double] = new Numeric[Double] {
     def default = 1D
     def negate(value: Double) = -value
     def apply(value: Double) = value.toString
   }
-  implicit object FloatCounts extends Numeric[Float] {
+  implicit val floats: Numeric[Float] = new Numeric[Float] {
     def default = 1F
     def negate(value: Float) = -value
     def apply(value: Float) = value.toString
