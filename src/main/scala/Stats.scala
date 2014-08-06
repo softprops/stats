@@ -65,7 +65,9 @@ case class Stats(
 
   def close() = channel.close()
 
-  def addr(host: String, port: Int = 8125) = copy(address = new InetSocketAddress(InetAddress.getByName(host), address.getPort))
+  def addr(host: String, port: Int = 8125) = copy(
+    address = new InetSocketAddress(InetAddress.getByName(host), address.getPort)
+  )
 
   @varargs
   def scope(sx: String*) = copy(scopes = scopes ++ sx)
