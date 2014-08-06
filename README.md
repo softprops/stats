@@ -149,4 +149,19 @@ Note that metric names are specified as a varargs list of path segments. You may
 val timerStr = cli.time("foo.bar", "baz")(1.second).str
 ```
 
+### Java
+
+Care was taken to ensure a stats interfaces are also tolerable to use in java-based applications;
+
+```java
+import stats.Stats;
+import scala
+public class Main {
+  public void main(String[] args) {
+    Stats client = Stats.client().scope("foo", "bar");
+    client.counter("baz", "boom").incr();
+  }
+}
+```
+
 Doug Tangren (softprops) 2014
