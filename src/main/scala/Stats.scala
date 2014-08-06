@@ -25,10 +25,10 @@ abstract class Counter[T:Numeric] {
   def scope(sx: String*): Counter[T]
   def apply(value: T): Stat
   def incr: Future[Boolean] =
-    incr(num.default)
+    incr(num.defaultValue)
   def incr(value: T): Future[Boolean]
   def decr: Future[Boolean] =
-    decr(num.default)
+    decr(num.defaultValue)
   def decr(value: T): Future[Boolean] =
     incr(num.negate(value))
 }
@@ -42,9 +42,7 @@ object Stats {
   val Success = Future.successful(true)
   val charset = Charset.forName("US-ASCII")
   // convenience for java
-  def client = {
-    Stats()(ExecutionContext.global)
-  }
+  def client = Stats()(ExecutionContext.global)
 }
 
 /**
