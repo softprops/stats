@@ -2,10 +2,13 @@ package stats
 
 import scala.concurrent.duration.FiniteDuration
 
+/** A marker type class for things that be be counted by statsd */
 trait Countable[T] {
   def apply(value: T): String
 }
 
+/** Numeric type is Countable with the ability to negate a typed value
+ *  and provides an defaultValue */
 trait Numeric[T] extends Countable[T] {
   def defaultValue: T
   def negate(value: T): T
