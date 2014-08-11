@@ -142,7 +142,7 @@ expect with you look for your metric in a the graphite UI.
 val timerStr = cli.time("foo", "bar")(1.second).str
 ```
 
-Note that metric names are specified as a varargs list of path segments. You may be template to hard code a preencoded path ( one containing a separator). In these cases those periods will be escaped to remove ambiguity.
+Note that metric names are specified as a varargs list of path segments. You may be template to hard code a pre-encoded path ( one containing a separator). In these cases those periods will be escaped to remove ambiguity.
 
 ```scala
 // foo_bar.baz:1000|ms

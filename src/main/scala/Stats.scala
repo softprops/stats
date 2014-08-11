@@ -8,7 +8,7 @@ import scala.annotation.varargs
 import scala.concurrent.{ ExecutionContext, Future }
 import scala.concurrent.duration.FiniteDuration
 
-/** Sampled instances countain values to be recorded at sampled rates */
+/** Sampled instances contain values to be recorded at sampled rates */
 abstract class Sampled[T:Countable] {
   def add(value: T): Future[Boolean]
   def apply(value: T): Stat
