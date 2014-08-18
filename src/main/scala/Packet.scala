@@ -10,16 +10,6 @@ object Packet {
          val len = str.length + 1
          val nextLen = total + len
          val overflow = nextLen > max
-         // the general algorithm below follows the following pattern
-         // * compute the length to allocate a line (with newline char)
-         // * carry over running packet length
-         // * keep track of whether or not we overlow a given 
-         // max packet size
-         // * if we haven't gone over the max, prepend the metric to 
-         //   the head list, accumulating the running packet len counter
-         // * if we have gone over the max, prepend a new list containing
-         //   only the current metric to the list of lists, resetting the
-         //   packet length counter to that of the current metric's len
          lines match {
            case Nil =>
              if (overflow) (Nil, 0) // we can't actually send this line
