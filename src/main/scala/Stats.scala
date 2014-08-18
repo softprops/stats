@@ -54,7 +54,8 @@ object Stats {
 case class Stats(
   address: InetSocketAddress         = new InetSocketAddress(InetAddress.getByName("localhost"), 8125),
   format: Iterable[String] => String = Names.format,
-  scopes: Iterable[String]           = Nil)
+  scopes: Iterable[String]           = Nil,
+  packetMax: Short                   = 1500)
  (implicit ec: ExecutionContext) {
 
   private[this] lazy val channel = DatagramChannel.open()
@@ -70,8 +71,8 @@ case class Stats(
 
   def formatNames(fmt: Iterable[String] => String) = copy(format = fmt)
 
-  /** A stat captures a metric unit, value, sampleRate and one or more keys to associate with it */
-  case class Line[@specialized(Int, Double, Float) T: Countable](
+  /** Captures a metric unit, value, sampleRate and one or more keys to associate with it */
+  case class Metric[@specialized(Int, Double, Float) T: Countable](
     unit: String, name: Iterable[String], value: T, sampleRate: Double) extends Stat {
     private[this] val count = implicitly[Countable[T]]
 
@@ -87,7 +88,7 @@ case class Stats(
     (name: Iterable[String], rate: Double = 1D): Counter[T] =
       new Counter[T] {
         def apply(value: T): Stat =
-          Line("c", name, value, rate)
+          Metric("c", name, value, rate)
         def incr(value: T): Future[Boolean] =
           send(apply(value))
         def sample(rate: Double): Counter[T] =
@@ -102,7 +103,7 @@ case class Stats(
         def add(value: T) =
           send(apply(value))
         def apply(value: T): Stat =
-          Line(unit, name, value, rate)
+          Metric(unit, name, value, rate)
         def sample(rate: Double): Sampled[T] =
           newSampled[T](unit, name, rate)
         def scope(sx: String*): Sampled[T] =
@@ -128,16 +129,20 @@ case class Stats(
   @varargs
   def multi(stats: Stat*) =
     send(stats:_*)
-    
+
   private[this] def send(stats: Stat*): Future[Boolean] =
     stats.filter(_.sampled) match {
       case Nil =>
         Stats.Success
       case xs  => Future {
-        val str = xs.map(_.str).mkString("\n")
-        val bytes = str.getBytes(Stats.charset)
-        val sent = channel.send(ByteBuffer.wrap(bytes), address)
-        bytes.size == sent
+        val packets = Packet.grouped(packetMax)(xs.map(_.str))
+        val (sent, expected) = ((0,0) /: packets) {
+          case ((s,e), packet) =>
+            val bytes = packet.mkString("\n").getBytes(Stats.charset)
+            val sent = channel.send(ByteBuffer.wrap(bytes), address)
+            (s + sent, e + bytes.length)
+        }
+        sent == expected
       }
     }
 }
