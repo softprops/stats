@@ -22,6 +22,6 @@ object Packet {
              else ((str :: head) :: prev :: rest, nextLen)
          }
      }
-     packets
+     packets.reverse.map(_.reverse)
    }
 }
