@@ -1,7 +1,7 @@
 package stats
 
 object Packet {
-  /** much like IterableLike#grouped with with statsd packet sematics */
+  /** much like IterableLike#grouped but with statsd packet sematics */
   def grouped
    (max: Short)
    (metrics: Iterable[String]): Iterable[List[String]] = {
