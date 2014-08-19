@@ -26,6 +26,8 @@ public class JavaTest {
   public static void main(String[] args) {
     Stats client = Stats.client().addr("localhost", 8125).scope("foo", "bar");
 
+    System.out.println(client.counter("unsampled").apply(1).str());
+
     // counter
     System.out.println(client.counter("baz", "boom").sample(0.5).apply(1).str());
 
