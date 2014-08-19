@@ -19,6 +19,8 @@ scalaVersion := crossScalaVersions.value.last
 
 scalacOptions += Opts.compile.deprecation
 
+javacOptions += "-Xlint:unchecked"
+
 seq(bintraySettings:_*)
 
 bintray.Keys.packageLabels in bintray.Keys.bintray := Seq("email", "mail", "javamail")
