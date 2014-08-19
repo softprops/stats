@@ -9,24 +9,24 @@ import scala.concurrent.{ ExecutionContext, Future }
 import scala.concurrent.duration.FiniteDuration
 
 /** Sampled instances contain values to be recorded at sampled rates */
-abstract class Sampled[T:Countable] {
+abstract class Sampled[T:Countable] { self =>
+  type Self >: self.type <: Sampled[T]
   def add(value: T): Future[Boolean]
   def apply(value: T): Stat
-  def sample(rate: Double): Sampled[T]
+  def sample(rate: Double): Self
   @varargs
-  def scope(sx: String*): Sampled[T]
+  def scope(sx: String*): Self
 }
 
 /** A counter is also sampled and also supports incr/decr operations */
-abstract class Counter[T:Numeric] {
+abstract class Counter[T:Numeric] extends Sampled[T] {
+  type Self = Counter[T]
   private[this] val num = implicitly[Numeric[T]]
-  def sample(rate: Double): Counter[T]
-  @varargs
-  def scope(sx: String*): Counter[T]
-  def apply(value: T): Stat
   def incr: Future[Boolean] =
     incr(num.defaultValue)
   def incr(value: T): Future[Boolean]
+  def add(value: T): Future[Boolean] =
+    incr(value)
   def decr: Future[Boolean] =
     decr(num.defaultValue)
   def decr(value: T): Future[Boolean] =
@@ -47,9 +47,10 @@ object Stats {
 }
 
 /**
- * A statsd client that supports the asynchronous sending of both singular and multi-stats.
- * All metric values should be serializable as formatted strings. This is enforced via
- * implicit instances of Countable for a given type T in scope.
+ * A statsd client that supports the asynchronous sending of
+ * both singular and multi-stat requests.
+ * All metric values should be serializable as formatted strings.
+ * This is enforced via implicit instances of Countable for a given type T in scope.
  */
 case class Stats(
   address: InetSocketAddress         = new InetSocketAddress(InetAddress.getByName("localhost"), 8125),
@@ -100,6 +101,7 @@ case class Stats(
   private[this] def newSampled[T:Countable]
     (unit: String, name: Iterable[String], rate: Double = 1D): Sampled[T] =
       new Sampled[T] {
+        type Self = Sampled[T]
         def add(value: T) =
           send(apply(value))
         def apply(value: T): Stat =
