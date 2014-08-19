@@ -10,7 +10,8 @@ import scala.concurrent.duration.FiniteDuration
 
 /** Sampled instances contain values to be recorded at sampled rates */
 abstract class Sampled[T:Countable] { self =>
-  type Self >: self.type <: Sampled[T]
+  // type Self >: self.type <: Sampled[T]
+  type Self = Sampled[T]
   def add(value: T): Future[Boolean]
   def apply(value: T): Stat
   def sample(rate: Double): Self
@@ -18,15 +19,21 @@ abstract class Sampled[T:Countable] { self =>
   def scope(sx: String*): Self
 }
 
-/** A counter is also sampled and also supports incr/decr operations */
-abstract class Counter[T:Numeric] extends Sampled[T] {
+/** A counter is a sampled instance that supports incr/decr operations */
+abstract class Counter[T:Numeric] {
   type Self = Counter[T]
   private[this] val num = implicitly[Numeric[T]]
+
+  def add(value: T): Future[Boolean]
+  def apply(value: T): Stat
+  def sample(rate: Double): Self
+  @varargs
+  def scope(sx: String*): Self
+
   def incr: Future[Boolean] =
     incr(num.defaultValue)
-  def incr(value: T): Future[Boolean]
-  def add(value: T): Future[Boolean] =
-    incr(value)
+  def incr(value: T): Future[Boolean] =
+    add(value)
   def decr: Future[Boolean] =
     decr(num.defaultValue)
   def decr(value: T): Future[Boolean] =
@@ -88,10 +95,10 @@ case class Stats(
   private[this] def newCounter[T:Numeric]
     (name: Iterable[String], rate: Double = 1D): Counter[T] =
       new Counter[T] {
+        def add(value: T): Future[Boolean] =
+          send(apply(value))
         def apply(value: T): Stat =
           Metric("c", name, value, rate)
-        def incr(value: T): Future[Boolean] =
-          send(apply(value))
         def sample(rate: Double): Counter[T] =
           newCounter[T](name, rate)
         def scope(sx: String*): Counter[T] =
@@ -101,7 +108,6 @@ case class Stats(
   private[this] def newSampled[T:Countable]
     (unit: String, name: Iterable[String], rate: Double = 1D): Sampled[T] =
       new Sampled[T] {
-        type Self = Sampled[T]
         def add(value: T) =
           send(apply(value))
         def apply(value: T): Stat =
