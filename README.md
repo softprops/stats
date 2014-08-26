@@ -10,7 +10,7 @@ Stats is a non-blocking Scala front end for reporting application metrics to [st
 
 ### connecting
 
-Creating a stats client is simple. The default client is configured for testing with a statsd server locally on port `8125`.
+Creating a stats client is simple. The default client is configured for testing with a statsd server locally listening on port `8125`.
 
 ```scala
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -25,9 +25,9 @@ val hosted = cli.addr(host, port)
 
 ### metric names
 
-Statd servers are largely concerned with 2 things, metric names and metric values. Metric names are lists of period (`.`) separated path segments.
+Statd servers are largely concerned with 2 things: metric names and metric values. Metric names are lists of period (`.`) separated path segments.
 These names translate to file paths so most naming rules that apply to file names also apply to metric names. If your application has specific name
-formatting needs you can override the default escaping strategy pass setting the clients `format` member.
+formatting needs, you can override the default escaping strategy with the client's `formatNames` member.
 
 ```scala
 val formatted = cli.formatNames { segments: Iterable[String] =>
@@ -35,7 +35,7 @@ val formatted = cli.formatNames { segments: Iterable[String] =>
 }
 ```
 
-Names often represent an encoding of a metric's hierarchy context. For this reason, many of the stats client support name scoping with the `scope` method.
+Names often represent an encoding of a metric's hierarchy context. For this reason, many of the stats client interfaces support name scoping with the `scope` method.
 
 ```scala
 val scoped = cli.scope(serviceName)
@@ -151,7 +151,7 @@ val timerStr = cli.time("foo.bar", "baz")(1.second).str
 
 ### Java
 
-Care was taken to ensure a stats interfaces are also tolerable to use in java-based applications;
+Care was taken to ensure stats interfaces are also tolerable to use in java-based applications;
 
 ```java
 import stats.Stats;
