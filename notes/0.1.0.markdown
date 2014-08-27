@@ -2,7 +2,7 @@
 
 Stats is a non-blocking Scala interface for exporting metrics to [statsd](https://github.com/etsy/statsd/) servers. 
 
-A client defines a number of exporting interfaces based statsd defined [metric types](https://github.com/etsy/statsd/blob/master/docs/metric_types.md)
+A client defines a number of exporting interfaces based on statsd defined [metric types](https://github.com/etsy/statsd/blob/master/docs/metric_types.md)
 
     import scala.concurrent.ExecutionContext.Implicits.global
     val cli = stats.Stats().addr(host, port).scope("test")
@@ -22,7 +22,7 @@ All stats exporters support [sampling](https://github.com/etsy/statsd/blob/maste
     val specialCounter = counter.sample(rate).scope("special", "fun")
     specialCounter.incr
  
-Stats also supports sending multiple stats at once with `multi` interface and `applying` values to exporters
+Stats also supports sending multiple stats at once with the `multi` interface and `applying` values to exporters
 
     val hits = cli.counter("hits")
     val latency = cli.time("latency")
