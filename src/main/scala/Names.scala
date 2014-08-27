@@ -4,6 +4,7 @@ package stats
 // printables - https://github.com/greghaskins/pyparsing/blob/master/src/pyparsing.py#L166
 
 object Names {
+  type Format = Iterable[String] => String
   val Separator = "."
   val NonPrintables = "[^!-~]" // white space is omitted
   val Symbols = """(){},=.'"\\"""

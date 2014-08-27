@@ -60,14 +60,15 @@ object Stats {
  * This is enforced via implicit instances of Countable for a given type T in scope.
  */
 case class Stats(
-  address: InetSocketAddress         = new InetSocketAddress(InetAddress.getByName("localhost"), 8125),
-  format: Iterable[String] => String = Names.format,
-  scopes: Iterable[String]           = Nil,
-  packetMax: Short                   = 1500)
+  address: InetSocketAddress  = new InetSocketAddress(InetAddress.getByName("localhost"), 8125),
+  format: Names.Format        = Names.format,
+  scopes: Iterable[String]    = Nil,
+  packetMax: Short            = 1500)
  (implicit ec: ExecutionContext) {
 
   private[this] lazy val channel = DatagramChannel.open()
 
+  /** Closes any open connection. Once closed this instance's behavior is undefined */
   def close() = channel.close()
 
   def addr(host: String, port: Int = 8125) = copy(
@@ -77,7 +78,7 @@ case class Stats(
   @varargs
   def scope(sx: String*) = copy(scopes = scopes ++ sx)
 
-  def formatNames(fmt: Iterable[String] => String) = copy(format = fmt)
+  def formatNames(fmt: Names.Format) = copy(format = fmt)
 
   /** Captures a metric unit, value, sampleRate and one or more keys to associate with it */
   case class Metric[@specialized(Int, Double, Float) T: Countable](
