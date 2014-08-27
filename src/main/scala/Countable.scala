@@ -8,7 +8,7 @@ trait Countable[T] {
 }
 
 /** Numeric type is Countable with the ability to negate a typed value
- *  and provides an defaultValue */
+ *  and provides a defaultValue */
 trait Numeric[T] extends Countable[T] {
   def defaultValue: T
   def negate(value: T): T
