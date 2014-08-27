@@ -146,7 +146,7 @@ case class Stats(
         val packets = Packet.grouped(packetMax)(xs.map(_.str))
         val (sent, expected) = ((0,0) /: packets) {
           case ((s,e), packet) =>
-            val bytes = packet.mkString("\n").getBytes(Stats.charset)
+            val bytes = Packet.bytes(packet)
             val sent = channel.send(ByteBuffer.wrap(bytes), address)
             (s + sent, e + bytes.length)
         }
