@@ -6,18 +6,18 @@ numbers, exported.
 
 ## usage
 
-Stats is a non-blocking Scala front end for reporting application metrics to [statsd](https://github.com/etsy/statsd/) over [UPD](http://en.wikipedia.org/wiki/User_Datagram_Protocol).
+Stats is a non-blocking Scala frontend for reporting metrics to [statsd](https://github.com/etsy/statsd/) over [UPD](http://en.wikipedia.org/wiki/User_Datagram_Protocol).
 
 ### connecting
 
-Creating a stats client is simple. The default client is configured for testing with a statsd server locally listening on port `8125`.
+Creating a new stats client is simple. The default client is configured for exporting stats to a statsd server hosted locally listening on port `8125`.
 
 ```scala
 import scala.concurrent.ExecutionContext.Implicits.global
 val cli = stats.Stats()
 ```
 
-You can specify a remote address as an InetSocketAddress as the first argument or use the `addr` method to return a client pointing to an alternative host address.
+You can specify a remote address as an InetSocketAddress as a Stats constructor argument or use the `addr` method to return a new client pointing to an alternative host address.
 
 ```scala
 val hosted = cli.addr(host, port)
@@ -35,13 +35,13 @@ val formatted = cli.formatNames { segments: Iterable[String] =>
 }
 ```
 
-Names often represent an encoding of a metric's hierarchy context. For this reason, many of the stats client interfaces support name scoping with the `scope` method.
+Names often represent an encoding of a metric's hierarchy of context. For this reason, many of the stats client interfaces support name scoping with the `scope` method.
 
 ```scala
-val scoped = cli.scope(serviceName)
+val scoped = cli.scope("svr").scope("serviceName")
 ```
 
-The above will prepend `serviceName` to the name of all reported metrics
+The above will prepend `srv.serviceName` to the name of all reported metrics
 
 ### Metric values
 
@@ -70,7 +70,7 @@ counts.decr(5)
 
 Note each operation results of a [Future](http://www.scala-lang.org/api/current/index.html#scala.concurrent.Future) of type boolean where the boolean value represents the packet data being sent fully.
 
-Counting, and other metric types, all support request sampling. By default any metric operation will be reported to a statsd server. You can override
+Counting, and other metric types, all support request sampling. By default, any metric operation will be reported to a statsd server. You can override
 this behavior by setting a custom sample rate, a number between 0 and 1.
 
 ```scala
@@ -81,7 +81,7 @@ The above will only report metric data at a rate of 0.8. Sampling is sometimes h
 
 #### Timing
 
-Timers are recorders of time based information in milliseconds. To remove ambiguity the interface for timers operate on [FiniteDurations](http://www.scala-lang.org/api/current/index.html#scala.concurrent.duration.FiniteDuration).
+Timers are recorders of time based information in milliseconds. To remove any ambiguity, interface for timers operate on std library [FiniteDurations](http://www.scala-lang.org/api/current/index.html#scala.concurrent.duration.FiniteDuration).
 
 ```scala
 val latency = cli.time("responses")
@@ -93,8 +93,8 @@ latency.add(2 seconds)
 
 #### Gauges
 
-Gauges provide an interface for recording information about arbitrary countable values. Countable types are currently defined as Ints, Doubles, and Floats
-. Since a type bound is defined you are required to specify the type of value you wish to record.
+Gauges provide an interface for recording information about arbitrary countable values. Countable types are currently defined for Ints, Doubles, and Floats
+. Since a type bound is defined, you are required to specify the type of value you wish to record.
 
 ```scala
 val memory = cli.gauge[Int]("memory")
@@ -113,7 +113,7 @@ val visitors = cli.set[Int]("visitors")
 
 visitors.add(memberA)
 visitors.add(memberB)
-visitors.add(memberA) // only one memberA event will actually be recorded
+visitors.add(memberA) // only one memberA event will actually be recorded for a given flush interval
 ```
 
 #### Multi stats
@@ -130,7 +130,12 @@ cli.multi(
 )
 ```
 
-Each individual stat instances sample rate will be honored in a multi metric send.
+Each individual stat instances sample rate will be honored in a multi metric send. You should take note of your networks configured packet size limits.
+Some general guidelines are defined [here](https://github.com/etsy/statsd/blob/master/docs/metric_types.md#multi-metric-packets). Stats will make a best effort to group stats according to this clients `packetMax` size which defaults to `1500`. You can configure this as follows.
+
+```scala
+val sized = cli.packetMax(512)
+```
 
 ### Inspecting
 

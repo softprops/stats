@@ -75,6 +75,8 @@ case class Stats(
     address = new InetSocketAddress(InetAddress.getByName(host), address.getPort)
   )
 
+  def packetMax(max: Short) = copy(packetMax = max)
+
   @varargs
   def scope(sx: String*) = copy(scopes = scopes ++ sx)
 
