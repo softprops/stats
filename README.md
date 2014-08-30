@@ -137,6 +137,21 @@ Some general guidelines are defined [here](https://github.com/etsy/statsd/blob/m
 val sized = cli.packetMax(512)
 ```
 
+### Logging
+
+
+It's useful to know when things fail. Since all stating operation result in a Future result you could register a logging listener for failures at
+each callsite but that can become error prone and tedious. Stats provides a convenient way to do this in one place but registering a logging function.
+
+```scala
+val logged = cli.addr("deadhost").log {
+  case Failure(NonFatal(e)) =>
+     println(s"failed to sent packet of one or more stats")
+  case _ =>
+}
+logged.counter("this", "will", "fail").incr
+```
+
 ### Inspecting
 
 You can inspect the value a given metric will report by calling the `str` member of a given stats instance. This can help you get to know what to
