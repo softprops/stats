@@ -7,6 +7,7 @@ import java.nio.charset.Charset
 import scala.annotation.varargs
 import scala.concurrent.{ ExecutionContext, Future }
 import scala.concurrent.duration.FiniteDuration
+import scala.util.Try
 
 /** Sampled instances contain values to be recorded at sampled rates */
 abstract class Sampled[T:Countable] { self =>
@@ -60,10 +61,11 @@ object Stats {
  * This is enforced via implicit instances of Countable for a given type T in scope.
  */
 case class Stats(
-  address: InetSocketAddress  = new InetSocketAddress(InetAddress.getByName("localhost"), 8125),
-  format: Names.Format        = Names.format,
-  scopes: Iterable[String]    = Nil,
-  packetMax: Short            = 1500)
+  address: InetSocketAddress        = new InetSocketAddress(InetAddress.getByName("localhost"), 8125),
+  format: Names.Format              = Names.format,
+  scopes: Iterable[String]          = Nil,
+  packetMax: Short                  = 1500,
+  log: Option[Try[Boolean] => Unit] = None)
  (implicit ec: ExecutionContext) {
 
   private[this] lazy val channel = DatagramChannel.open()
@@ -75,7 +77,9 @@ case class Stats(
     address = new InetSocketAddress(InetAddress.getByName(host), address.getPort)
   )
 
-  def packetMax(max: Short) = copy(packetMax = max)
+  def packetMax(max: Short): Stats = copy(packetMax = max)
+
+  def log(l: Try[Boolean] => Unit) = copy(log = Some(l))
 
   @varargs
   def scope(sx: String*) = copy(scopes = scopes ++ sx)
@@ -145,15 +149,18 @@ case class Stats(
     stats.filter(_.sampled) match {
       case Nil =>
         Stats.Success
-      case xs  => Future {
-        val packets = Packet.grouped(packetMax)(xs.map(_.str))
-        val (sent, expected) = ((0,0) /: packets) {
-          case ((s,e), packet) =>
-            val bytes = Packet.bytes(packet)
-            val sent = channel.send(ByteBuffer.wrap(bytes), address)
-            (s + sent, e + bytes.length)
+      case xs  =>
+        val delivery = Future {
+          val packets = Packet.grouped(packetMax)(xs.map(_.str))
+          val (sent, expected) = ((0,0) /: packets) {
+            case ((s,e), packet) =>
+              val bytes = Packet.bytes(packet)
+              val sent = channel.send(ByteBuffer.wrap(bytes), address)
+              (s + sent, e + bytes.length)
+          }
+          sent == expected
         }
-        sent == expected
-      }
+        log.foreach(delivery.onComplete)
+        delivery
     }
 }
