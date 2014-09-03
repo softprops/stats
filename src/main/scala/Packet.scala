@@ -3,9 +3,9 @@ package stats
 object Packet {
   private[this] val Sep = "\n"
   private[this] val SepLen = Sep.length
-  /** udp packets have headers which take up 16 bytes
+  /** udp packets have headers which take up 8 bytes
    *  http://en.wikipedia.org/wiki/User_Datagram_Protocol#Packet_structure */
-  private[this] val HeaderLen = 16
+  private[this] val HeaderLen = 8
 
   def bytes(lines: Iterable[String]) =
     lines.mkString(Sep).getBytes(Stats.charset)
