@@ -5,12 +5,8 @@ import org.scalacheck.Properties
 import org.scalacheck.Prop.forAll
 
 object NameProperties extends Properties("Names") {
-  val AsciiPrintables = "[!-~]+"
-  val Escapables = Names.Symbols.toArray
-
-  def escaped(str: String) = Escapables.forall { char =>
-    !str.contains(char)
-  }
+  val disallow = stats.Names.DefaultDisallows.r
+  def escaped(str: String) = disallow.findFirstIn(str).isEmpty
 
   def nonEmptyStr: Gen[String] =
     for(cs <- Gen.nonEmptyListOf(asciiChar)) yield cs.mkString
@@ -19,6 +15,6 @@ object NameProperties extends Properties("Names") {
 
   property("formats") = forAll(nonEmptyStr) { (str: String) =>
     val formatted = Names.format(str :: Nil)
-    formatted.matches(AsciiPrintables) && escaped(formatted)
+    escaped(formatted)
   }
 }
