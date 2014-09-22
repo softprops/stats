@@ -1,37 +1,13 @@
 package stats
 
-import java.util.{ Random => JRandom }
-import scala.util.control.Exception.allCatch
+// port of Doug Lea's work that went into java7 (java.util.concurrent.ThreadLocalRandom) backported for java6
+import scala.concurrent.forkjoin.ThreadLocalRandom
 
 private[stats] trait Random {
   def nextDouble: Double
 }
 
-private[stats] object Random {
-
-   /** A java7 ThreadLocal-based random */
-   lazy val threadLocal = new Random {
-    private[this] val rand =
-      Class.forName("java.util.concurrent.ThreadLocalRandom")
-    private[this] val current =
-      rand.getDeclaredMethod("current", null)
-    private[this] val next =
-      rand.getDeclaredMethod("nextDouble", null)
-    private[this] def instance =
-      current.invoke(null, null)
-
-    def nextDouble = next.invoke(instance, null).asInstanceOf[Double]
-  }
-
-  /** A default jdk-based random */
-  lazy val fallback = new Random {
-    private[this] lazy val doubles = new JRandom()
-    def nextDouble = doubles.nextDouble
-  }
-
-  private[this] lazy val impl: Random =
-    allCatch.opt(threadLocal).getOrElse(fallback)
-
-  def nextDouble = impl.nextDouble
+private[stats] object Random extends Random {
+  def nextDouble = ThreadLocalRandom.current.nextDouble
 }
 
