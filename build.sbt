@@ -4,7 +4,7 @@ name := "stats"
 
 version := "0.1.0-SNAPSHOT"
 
-description := "a nonblocking statsd client"
+description := "a non-blocking statsd client"
 
 libraryDependencies += "org.scalacheck" %% "scalacheck" % "1.11.4" % "test"
 
@@ -13,7 +13,7 @@ licenses := Seq(
 
 homepage := Some(url(s"https://github.com/softprops/${name.value}/#readme"))
 
-crossScalaVersions := Seq("2.10.4", "2.11.1")
+crossScalaVersions := Seq("2.10.4", "2.11.2")
 
 scalaVersion := crossScalaVersions.value.last
 
@@ -23,7 +23,7 @@ javacOptions += "-Xlint:unchecked"
 
 seq(bintraySettings:_*)
 
-bintray.Keys.packageLabels in bintray.Keys.bintray := Seq("email", "mail", "javamail")
+bintray.Keys.packageLabels in bintray.Keys.bintray := Seq("stats", "statsd")
 
 seq(lsSettings:_*)
 
