@@ -93,7 +93,7 @@ latency.add(2 seconds)
 
 #### Gauges
 
-Gauges provide an interface for recording information about arbitrary countable values. Countable types are currently defined for Ints, Doubles, and Floats
+Gauges provide an interface for recording information about arbitrary countable values. Gauges have the unique property retaining only the last value recorded within a configured flush interval. Countable types are currently defined for Ints, Doubles, and Floats
 . Since a type bound is defined, you are required to specify the type of value you wish to record.
 
 ```scala
@@ -106,7 +106,7 @@ memory.add(80000000)
 
 #### Sets
 
-Sets are similar to gauges except that what gets recorded is only unique occurrences of events within an interval of time ( the flush period defined in your statsd server )
+Sets are similar to gauges except that only unique occurances of values are recorded within a configured flush interval.
 
 ```scala
 val visitors = cli.set[Int]("visitors")
