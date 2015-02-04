@@ -179,7 +179,7 @@ import scala
 public class Main {
   public void main(String[] args) {
     Stats client = Stats.client().scope("foo", "bar");
-    client.counter("baz", "boom").incr();
+    client.jcounter("baz", "boom").incr();
   }
 }
 ```
