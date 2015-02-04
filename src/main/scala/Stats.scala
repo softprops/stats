@@ -15,13 +15,17 @@ abstract class Sampled[T:Value, Self <: Sampled[T, Self]] {
   def add(value: T): Future[Boolean]
   def apply(value: T): Stat
   def sample(rate: Double): Self
+  /** here to avoid static forwarding issue with implementations of `scope` */
   def scopes(sx: Seq[String]): Self
   @varargs
   def scope(sx: String*): Self =
     scopes(sx)
 }
 
-abstract class DefaultSampled[T:Value] extends Sampled[T, DefaultSampled[T]]
+/** A simplied type signature for concrete extension for
+ *  clients to avoid `typing` out the f-bounded polymophic
+ *  signature above */
+abstract class Sampling[T:Value] extends Sampled[T, Sampling[T]]
 
 /** A counter is a sampled instance that supports incr/decr operations */
 abstract class Counter[T:RichValue] extends Sampled[T, Counter[T]] {
@@ -115,8 +119,8 @@ case class Stats(
       }
   
   private[this] def newSampled[T:Value]
-    (unit: String, name: Iterable[String], rate: Double = 1D): DefaultSampled[T] =
-      new DefaultSampled[T] {
+    (unit: String, name: Iterable[String], rate: Double = 1D): Sampling[T] =
+      new Sampling[T] {
         def add(value: T): Future[Boolean] =
           send(apply(value))
         def apply(value: T): Stat =
@@ -161,12 +165,12 @@ case class Stats(
     newCounter[JInt](scopes ++ name)
 
   /** https://github.com/etsy/statsd/blob/master/docs/metric_types.md#sets */
-  @varargs
+  //@varargs (scala 2.10.4 prevents this)
   def set[T:Value](name: String*) =
     newSampled[T]("s", scopes ++ name)
 
   /** https://github.com/etsy/statsd/blob/master/docs/metric_types.md#gauges */
-  @varargs
+  //@varargs (scala 2.10.4 prevents this)
   def gauge[T:RichValue](name: String*) =
     newGauge[T](scopes ++ name)
 
