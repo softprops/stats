@@ -12,6 +12,15 @@ trait Transport {
 
 object Transport {
 
+  object None extends Transport {
+    def send(seq: Seq[Stat]) =
+      Future.successful(true)
+    def close() = ()
+  }
+
+  def none(addr: InetSocketAddress, packetMax: Short, ec: ExecutionContext) =
+    None
+
   def datagram(addr: InetSocketAddress, packetMax: Short, ec: ExecutionContext) =
     Datagram(addr, packetMax)(ec)
 
