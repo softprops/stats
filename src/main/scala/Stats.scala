@@ -12,7 +12,7 @@ import java.lang.{ Integer => JInt }
 
 /** Sampled instances contain values to be recorded at sampled rates */
 abstract class Sampled[T:Value, Self <: Sampled[T, Self]] {
-  def add(value: T): Future[Boolean]
+  def record(value: T): Future[Boolean]
   def apply(value: T): Stat
   def sample(rate: Double): Self
   /** here to avoid static forwarding issue with implementations of `scope` */
@@ -33,7 +33,7 @@ abstract class Counter[T:RichValue] extends Sampled[T, Counter[T]] {
   def incr: Future[Boolean] =
     incr(values.defaultValue)
   def incr(value: T): Future[Boolean] =
-    add(value)
+    record(value)
   def decr: Future[Boolean] =
     decr(values.defaultValue)
   def decr(value: T): Future[Boolean] =
@@ -43,8 +43,8 @@ abstract class Counter[T:RichValue] extends Sampled[T, Counter[T]] {
 abstract class Gauge[T:Value] extends Sampled[T, Gauge[T]] {
   type Self[T] = Gauge[T]
   def delta(value: T, subtract: Boolean): Stat
-  def deltaAdd(value: T): Future[Boolean]
-  def deltaSubtract(value: T): Future[Boolean]
+  def add(value: T): Future[Boolean]
+  def subtract(value: T): Future[Boolean]
 }
 
 /** A scalar value which may be recorded if not sampled */
@@ -108,7 +108,7 @@ case class Stats(
   private[this] def newCounter[T:RichValue]
     (name: Iterable[String], rate: Double = 1D): Counter[T] =
       new Counter[T] {
-        def add(value: T): Future[Boolean] =
+        def record(value: T): Future[Boolean] =
           send(apply(value))
         def apply(value: T): Stat =
           Metric("c", name, value, rate)
@@ -121,7 +121,7 @@ case class Stats(
   private[this] def newSampled[T:Value]
     (unit: String, name: Iterable[String], rate: Double = 1D): Sampling[T] =
       new Sampling[T] {
-        def add(value: T): Future[Boolean] =
+        def record(value: T): Future[Boolean] =
           send(apply(value))
         def apply(value: T): Stat =
           Metric(unit, name, value, rate)
@@ -135,7 +135,7 @@ case class Stats(
    (name: Iterable[String], rate: Double = 1D): Gauge[T] =
      new Gauge[T] {
        private[this] val values = Value.rich[T]
-       def add(value: T): Future[Boolean] =
+       def record(value: T): Future[Boolean] =
          send(apply(value))
        def apply(value: T): Stat =
          Metric("g", name, value, rate)
@@ -143,9 +143,9 @@ case class Stats(
          newGauge(name, rate)
        def scopes(sx: Seq[String]): Gauge[T] =
          newGauge(name ++ sx, rate)
-       def deltaAdd(value: T): Future[Boolean] =
+       def add(value: T): Future[Boolean] =
          send(delta(value, false))
-       def deltaSubtract(value: T): Future[Boolean] =
+       def subtract(value: T): Future[Boolean] =
          send(delta(value, true))
        def delta(value: T, subtract: Boolean): Stat =
          Metric(

@@ -87,8 +87,8 @@ Timers are recorders of time based information in milliseconds. To remove any am
 val latency = cli.time("responses")
 
 // record time
-latency.add(200 millis)
-latency.add(2 seconds)
+latency.record(200 millis)
+latency.record(2 seconds)
 ```
 
 #### Gauges
@@ -100,8 +100,15 @@ Gauges provide an interface for recording information about arbitrary countable 
 val memory = cli.gauge[Int]("memory")
 
 // record int values
-memory.add(1024)
-memory.add(80000000)
+memory.record(1024)
+memory.record(80000000)
+```
+
+Though the only the last value requested to be recorded within a flush interval is stored you may also modify that value in place during that window with `add`, `subtract`, and `delta` ( which `add` and `subtract` ) are implemented in terms of
+
+```scala
+memory.add(256)
+member.subtract(256)
 ```
 
 #### Sets
@@ -111,9 +118,9 @@ Sets are similar to gauges except that only unique occurances of values are reco
 ```scala
 val visitors = cli.set[Int]("visitors")
 
-visitors.add(memberA)
-visitors.add(memberB)
-visitors.add(memberA) // only one memberA event will actually be recorded for a given flush interval
+visitors.record(memberA)
+visitors.record(memberB)
+visitors.record(memberA) // only one memberA event will actually be recorded for a given flush interval
 ```
 
 #### Multi stats
