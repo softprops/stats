@@ -39,20 +39,20 @@ object StatsSpec extends Properties("Stats") with Cleanup {
     })
   }
 
-  property("set#adds") = forAll(Gen.posNum[Int]) { (i: Int) =>
+  property("set#records") = forAll(Gen.posNum[Int]) { (i: Int) =>
     val key = "test"
     await(for {
-      sent <- stats.set[Int](key).add(i)
+      sent <- stats.set[Int](key).record(i)
       str  <- reciepts()
     } yield {
       sent && str == s"$key:$i|s"
     })
   }
 
-  property("gauge#adds") = forAll(Gen.posNum[Int]) { (i: Int) =>
+  property("gauge#records") = forAll(Gen.posNum[Int]) { (i: Int) =>
     val key = "test"
     await(for {
-      sent <- stats.gauge[Int](key).add(i)
+      sent <- stats.gauge[Int](key).record(i)
       str  <- reciepts()
     } yield {
       sent && str == s"$key:$i|g"
@@ -60,10 +60,10 @@ object StatsSpec extends Properties("Stats") with Cleanup {
   }
 
 
-  property("time#adds") = forAll(Gen.posNum[Int]) { (i: Int) =>
+  property("time#records") = forAll(Gen.posNum[Int]) { (i: Int) =>
     val key = "test"
     await(for {
-      sent <- stats.time(key).add(i.milliseconds)
+      sent <- stats.time(key).record(i.milliseconds)
       str  <- reciepts()
     } yield {
       sent && str == s"$key:$i|ms"
