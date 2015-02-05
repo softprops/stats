@@ -42,6 +42,13 @@ object Value {
         format(_.format(value.toMillis))
     }
 
+  implicit val longs: RichValue[Long] =
+    new RichValue[Long] {
+      def defaultValue = 1
+      def negate(value: Long) = -value
+      def apply(value: Long) = format(_.format(value))
+    }
+
   implicit val ints: RichValue[Int] =
     new RichValue[Int] {
       def defaultValue = 1
