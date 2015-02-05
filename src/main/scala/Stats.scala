@@ -1,8 +1,7 @@
 package stats
 
 import java.net.{ InetAddress, InetSocketAddress }
-import java.nio.ByteBuffer
-import java.nio.channels.DatagramChannel
+
 import java.nio.charset.Charset
 import scala.annotation.varargs
 import scala.concurrent.{ ExecutionContext, Future }
@@ -71,13 +70,14 @@ case class Stats(
   format: Names.Format              = Names.format,
   scopes: Iterable[String]          = Nil,
   packetMax: Short                  = 1500,
-  log: Option[Try[Boolean] => Unit] = None)
+  log: Option[Try[Boolean] => Unit] = None,
+  transporter: (InetSocketAddress, Short, ExecutionContext) => Transport = Transport.datagram)
  (implicit ec: ExecutionContext) {
 
-  private[this] lazy val channel = DatagramChannel.open()
+  private[this] lazy val transport = transporter(address, packetMax, ec)
 
   /** Closes any open connection. Once closed this instance's behavior is undefined */
-  def close() = channel.close()
+  def close() = transport.close()
 
   def addr(host: String, port: Int = 8125) = copy(
     address = new InetSocketAddress(InetAddress.getByName(host), address.getPort)
@@ -191,16 +191,7 @@ case class Stats(
       case Nil =>
         Stats.Success
       case xs  =>
-        val delivery = Future {
-          val packets = Packet.grouped(packetMax)(xs.map(_.str))
-          val (sent, expected) = ((0,0) /: packets) {
-            case ((s,e), packet) =>
-              val bytes = Packet.bytes(packet)
-              val sent = channel.send(ByteBuffer.wrap(bytes), address)
-              (s + sent, e + bytes.length)
-          }
-          sent == expected
-        }
+        val delivery = transport.send(xs)
         log.foreach(delivery.onComplete)
         delivery
     }
