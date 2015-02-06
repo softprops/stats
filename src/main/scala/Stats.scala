@@ -103,11 +103,13 @@ case class Stats(
       s"${format(name)}:${values(value)}|$unit${if (sampleRate < 1) "@"+sampleRate else ""}"
   }
 
+  private[this] trait Recorder[T] { self: Sampled[T, _] =>
+    def record(value: T) = send(apply(value))
+  }
+
   private[this] def newCounter[T:RichValue]
     (name: Iterable[String], rate: Double = 1D): Counter[T] =
-      new Counter[T] {
-        def record(value: T): Future[Boolean] =
-          send(apply(value))
+      new Counter[T] with Recorder[T] {
         def apply(value: T): Stat =
           Metric("c", name, value, rate)
         def sample(rate: Double): Counter[T] =
@@ -118,9 +120,7 @@ case class Stats(
   
   private[this] def newSampled[T:Value]
     (unit: String, name: Iterable[String], rate: Double = 1D): Sampling[T] =
-      new Sampling[T] {
-        def record(value: T): Future[Boolean] =
-          send(apply(value))
+      new Sampling[T] with Recorder[T] {
         def apply(value: T): Stat =
           Metric(unit, name, value, rate)
         def sample(rate: Double) =
@@ -131,10 +131,8 @@ case class Stats(
 
   private[this] def newGauge[T:RichValue]
    (name: Iterable[String], rate: Double = 1D): Gauge[T] =
-     new Gauge[T] {
+     new Gauge[T] with Recorder[T] {
        private[this] val values = Value.rich[T]
-       def record(value: T): Future[Boolean] =
-         send(apply(value))
        def apply(value: T): Stat =
          Metric("g", name, value, rate)
        def sample(rate: Double): Gauge[T] =
