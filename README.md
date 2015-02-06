@@ -104,10 +104,17 @@ memory.record(1024)
 memory.record(80000000)
 ```
 
-Though the only the last value requested to be recorded within a flush interval is stored you may also modify that value in place during that window with `add`, `subtract`, and `delta` ( which `add` and `subtract` ) are implemented in terms of
+Though the only the last value requested to be recorded within a flush interval is stored you may also modify that value in place during that window with `add` and `subtract`.
+
+add 256 to the current value of memory
 
 ```scala
 memory.add(256)
+```
+
+subtract 256 from the current value of memory
+
+```scala
 member.subtract(256)
 ```
 

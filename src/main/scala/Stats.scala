@@ -40,8 +40,6 @@ abstract class Counter[T:RichValue] extends Sampled[T, Counter[T]] {
 }
 
 abstract class Gauge[T:Value] extends Sampled[T, Gauge[T]] {
-  type Self[T] = Gauge[T]
-  def delta(value: T, subtract: Boolean): Stat
   def add(value: T): Future[Boolean]
   def subtract(value: T): Future[Boolean]
 }
