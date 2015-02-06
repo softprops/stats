@@ -12,6 +12,8 @@ trait Transport {
 
 object Transport {
 
+  type Factory = (InetSocketAddress, Short, ExecutionContext) => Transport
+
   object None extends Transport {
     def send(seq: Seq[Stat]) =
       Future.successful(true)

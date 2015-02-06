@@ -69,7 +69,7 @@ case class Stats(
   scopes: Iterable[String]          = Nil,
   packetMax: Short                  = 1500,
   log: Option[Try[Boolean] => Unit] = None,
-  transporter: (InetSocketAddress, Short, ExecutionContext) => Transport = Transport.datagram)
+  transporter: Transport.Factory    = Transport.datagram)
  (implicit ec: ExecutionContext) {
 
   private[this] lazy val transport = transporter(address, packetMax, ec)
@@ -99,8 +99,10 @@ case class Stats(
       (sampleRate >= 1
        || Random.nextDouble <= sampleRate)
 
-    lazy val str =
-      s"${format(name)}:${values(value)}|$unit${if (sampleRate < 1) "@"+sampleRate else ""}"
+      lazy val str = {
+        val samplingSuffix = if (sampleRate < 1) "@" + sampleRate else ""
+        s"${format(name)}:${values(value)}|$unit$samplingSuffix"
+      }
   }
 
   private[this] trait Recorder[T] { self: Sampled[T, _] =>
