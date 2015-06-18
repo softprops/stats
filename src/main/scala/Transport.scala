@@ -2,21 +2,23 @@ package stats
 
 import java.nio.channels.DatagramChannel
 import scala.concurrent.{ ExecutionContext, Future }
+import scala.util.control.NoStackTrace
 import java.net.InetSocketAddress
 import java.nio.ByteBuffer
 
 trait Transport {
-  def send(stats: Seq[Stat]): Future[Boolean]
+  def send(stats: Seq[Stat]): Future[(Seq[Stat], Boolean)]
   def close()
 }
 
 object Transport {
 
   type Factory = (InetSocketAddress, Short, ExecutionContext) => Transport
+  case class Fail(stats: Seq[Stat], cause: Throwable) extends Throwable with NoStackTrace
 
   object None extends Transport {
     def send(seq: Seq[Stat]) =
-      Future.successful(true)
+      Future.successful((seq, true))
     def close() = ()
   }
 
@@ -43,6 +45,9 @@ object Transport {
             (s + sent, e + bytes.length)
         }
         sent == expected
-      }
+      }.transform(
+        { sent => (xs, sent) },
+        { fail => Fail(xs, fail) }
+      )
   }
 }

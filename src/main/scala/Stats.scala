@@ -68,7 +68,7 @@ case class Stats(
   format: Names.Format              = Names.format,
   scopes: Iterable[String]          = Nil,
   packetMax: Short                  = 1500,
-  log: Option[Try[Boolean] => Unit] = None,
+  log: Option[Try[(Seq[Stat], Boolean)] => Unit] = None,
   transporter: Transport.Factory    = Transport.datagram)
  (implicit ec: ExecutionContext) {
 
@@ -83,7 +83,7 @@ case class Stats(
 
   def packetMax(max: Short): Stats = copy(packetMax = max)
 
-  def log(l: Try[Boolean] => Unit) = copy(log = Some(l))
+  def log(l: Try[(Seq[Stat], Boolean)] => Unit) = copy(log = Some(l))
 
   @varargs
   def scope(sx: String*) = copy(scopes = scopes ++ sx)
@@ -191,6 +191,6 @@ case class Stats(
       case xs  =>
         val delivery = transport.send(xs)
         log.foreach(delivery.onComplete)
-        delivery
+        delivery.map { case (_, s) => s }
     }
 }
