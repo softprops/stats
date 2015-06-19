@@ -2,7 +2,7 @@ organization := "me.lessis"
 
 name := "stats"
 
-version := "0.1.0-SNAPSHOT"
+version := "0.1.0"
 
 description := "a non-blocking statsd client"
 
@@ -21,26 +21,17 @@ scalacOptions += Opts.compile.deprecation
 
 javacOptions += "-Xlint:unchecked"
 
-seq(bintraySettings:_*)
-
-bintray.Keys.packageLabels in bintray.Keys.bintray := Seq("stats", "statsd")
-
-seq(lsSettings:_*)
-
-LsKeys.tags in LsKeys.lsync := (bintray.Keys.packageLabels in bintray.Keys.bintray).value
-
-externalResolvers in LsKeys.lsync := (resolvers in bintray.Keys.bintray).value
+bintrayPackageLabels := Seq("stats", "statsd")
 
 testOptions in Test += Tests.Cleanup { loader =>
   val c = loader.loadClass("stats.Cleanup$")
   c.getMethod("cleanup").invoke(c.getField("MODULE$").get(c))
 }
 
-
 pomExtra := (
   <scm>
-    <url>git@github.com:softprops/stats.git</url>
-    <connection>scm:git:git@github.com:softprops/stats.git</connection>
+    <url>git@github.com:softprops/${name.value}.git</url>
+    <connection>scm:git:git@github.com:softprops/{name.value}.git</connection>
   </scm>
   <developers>
     <developer>

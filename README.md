@@ -4,6 +4,16 @@
 
 numbers, exported.
 
+## install
+
+At the following to your sbt project's `build.sbt`
+
+```scala
+resolvers += "softprops-maven" at "http://dl.bintray.com/content/softprops/maven"
+
+libraryDependencies += "me.lessis" %% "stats" % "0.1.0"
+```
+
 ## usage
 
 Stats is a non-blocking Scala frontend for reporting metrics to [statsd](https://github.com/etsy/statsd/) over [UPD](http://en.wikipedia.org/wiki/User_Datagram_Protocol).
