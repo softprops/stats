@@ -30,7 +30,7 @@ testOptions in Test += Tests.Cleanup { loader =>
 
 pomExtra := (
   <scm>
-    <url>git@github.com:softprops/${name.value}.git</url>
+    <url>git@github.com:softprops/{name.value}.git</url>
     <connection>scm:git:git@github.com:softprops/{name.value}.git</connection>
   </scm>
   <developers>
